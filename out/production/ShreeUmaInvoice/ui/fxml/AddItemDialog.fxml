@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.AddItemController"
+      spacing="14"
+      prefWidth="420">
+
+    <padding>
+        <Insets top="16" right="16" bottom="16" left="16"/>
+    </padding>
+
+    <!-- Title -->
+    <Label text="Add New Item"
+           style="-fx-font-size:15px; -fx-font-weight:bold;"/>
+
+    <!-- Form -->
+    <GridPane hgap="12" vgap="10">
+
+        <columnConstraints>
+            <ColumnConstraints minWidth="100"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+
+        <!-- Item Name -->
+        <Label text="Item Name"/>
+        <TextField fx:id="nameField"
+                   promptText="e.g. Barley Crushed"
+                   GridPane.columnIndex="1"/>
+
+        <!-- HSN -->
+        <Label text="HSN Code" GridPane.rowIndex="1"/>
+        <TextField fx:id="hsnField"
+                   promptText="Optional"
+                   GridPane.rowIndex="1"
+                   GridPane.columnIndex="1"/>
+
+        <!-- Unit -->
+        <Label text="Unit" GridPane.rowIndex="2"/>
+        <TextField fx:id="unitField"
+                   promptText="e.g. Kg / Nos / Pcs"
+                   GridPane.rowIndex="2"
+                   GridPane.columnIndex="1"/>
+
+        <!-- Rate -->
+        <Label text="Rate" GridPane.rowIndex="3"/>
+        <TextField fx:id="rateField"
+                   promptText="e.g. 79.00"
+                   GridPane.rowIndex="3"
+                   GridPane.columnIndex="1"/>
+
+        <!-- GST -->
+        <Label text="GST %" GridPane.rowIndex="4"/>
+        <ComboBox fx:id="gstCombo"
+                  prefWidth="140"
+                  GridPane.rowIndex="4"
+                  GridPane.columnIndex="1"/>
+
+    </GridPane>
+
+    <!-- Actions -->
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button text="Cancel"
+                cancelButton="true"
+                onAction="#close"/>
+        <Button text="Save"
+                defaultButton="true"
+                onAction="#save"/>
+    </HBox>
+
+</VBox>

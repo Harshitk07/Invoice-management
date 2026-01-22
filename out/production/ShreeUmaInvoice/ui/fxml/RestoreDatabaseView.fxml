@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="ui.RestoreDatabaseController">
+
+    <top>
+        <VBox spacing="8" style="-fx-padding:20;" VBox.vgrow="ALWAYS">
+            <Label text="Restore Database Backup"
+                   style="-fx-font-size:18; -fx-font-weight:bold;"/>
+            <Label text="Select a backup file. Current database will be replaced."
+                   wrapText="true"/>
+        </VBox>
+    </top>
+
+    <center>
+        <ListView fx:id="backupList" VBox.vgrow="ALWAYS"/>
+    </center>
+
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding:20;">
+            <Button fx:id="restoreButton"
+                    text="Restore"
+                    onAction="#restore"
+                    style="-fx-background-color:#c62828; -fx-text-fill:white;"/>
+            <Button text="Cancel" onAction="#close"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

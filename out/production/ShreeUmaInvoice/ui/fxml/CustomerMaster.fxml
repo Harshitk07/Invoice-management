@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.CustomerMasterController"
+      style="-fx-background-color:#f3f6f8;">
+
+    <!-- ===== HEADER ===== -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="16" style="-fx-padding:12 16 16 16">
+            <Label text="Customer Master"
+                   style="
+                   -fx-font-size:20;
+                   -fx-font-weight:bold;
+                   -fx-text-fill:#263238;
+               "/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Button text="+ Add Customer"
+                    onAction="#openAddCustomerDialog"
+                    style="
+                    -fx-background-color:#1565c0;
+                    -fx-text-fill:white;
+                    -fx-font-size:13;
+                    -fx-font-weight:bold;
+                    -fx-background-radius:8;
+                    -fx-padding:8 14;
+                "/>
+        </HBox>
+    </top>
+
+    <!-- ===== TABLE CARD ===== -->
+    <center>
+        <VBox spacing="10"
+              style="
+              -fx-background-color:white;
+              -fx-background-radius:14;
+              -fx-padding:12 16 16 16;
+              -fx-effect:dropshadow(gaussian, rgba(0,0,0,0.08), 16, 0.3, 0, 4);
+          "
+              VBox.vgrow="ALWAYS">
+
+            <TableView fx:id="table"
+                       VBox.vgrow="ALWAYS"
+                       style="
+                       -fx-background-radius:10;
+                       -fx-border-radius:10;
+                   ">
+
+                <columns>
+                    <TableColumn fx:id="nameCol" text="Name" prefWidth="260" />
+                    <TableColumn fx:id="addressCol" text="Address" prefWidth="280"/>
+                    <TableColumn fx:id="stateCol" text="State" prefWidth="140"/>
+                    <TableColumn fx:id="gstCol" text="GST" prefWidth="140"/>
+                    <TableColumn fx:id="activeCol" text="Active" prefWidth="70"/>
+                    <TableColumn fx:id="editCol" text="Edit" prefWidth="80"/>
+                </columns>
+
+            </TableView>
+        </VBox>
+    </center>
+
+</BorderPane>

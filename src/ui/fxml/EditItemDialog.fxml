@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.EditItemController"
+      spacing="10"
+      style="-fx-padding:16;">
+
+    <Label text="Edit Item"
+           style="-fx-font-size:16px; -fx-font-weight:bold;"/>
+
+    <TextField fx:id="nameField" editable="false"/>
+
+    <TextField fx:id="hsnField" promptText="HSN Code"/>
+
+    <ComboBox fx:id="unitCombo" promptText="Unit"/>
+
+    <TextField fx:id="rateField" promptText="Rate"/>
+
+    <ComboBox fx:id="gstCombo" promptText="GST %"/>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button text="Cancel" onAction="#close"/>
+        <Button text="Update" onAction="#update"/>
+    </HBox>
+
+</VBox>
+
