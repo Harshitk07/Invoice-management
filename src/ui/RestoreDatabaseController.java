@@ -62,6 +62,10 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
     @FXML
     private Button restoreButton;
 
+    @FXML
+    private ComboBox<String> sortBox;
+
+
 
     @FXML
     public void initialize() {
@@ -139,7 +143,59 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
             }
         });
 
+        sortBox.getItems().addAll(
+                "Newest first",
+                "Oldest first",
+                "By Type",
+                "By Health"
+        );
+
+        sortBox.setValue("Newest first");
+
+        sortBox.valueProperty().addListener((obs, o, n) -> applySorting());
+
+
     }
+
+    private void applySorting() {
+
+        List<Path> items = backupList.getItems();
+
+        switch (sortBox.getValue()) {
+
+            case "Oldest first" ->
+                    items.sort((a, b) -> {
+                        try {
+                            return Files.getLastModifiedTime(a)
+                                    .compareTo(Files.getLastModifiedTime(b));
+                        } catch (Exception e) {
+                            return 0;
+                        }
+                    });
+
+            case "By Type" ->
+                    items.sort((a, b) -> {
+                        int ta = typeRank(a);
+                        int tb = typeRank(b);
+                        if (ta != tb) return Integer.compare(ta, tb);
+                        return compareByTimeDesc(a, b);
+                    });
+
+            case "By Health" ->
+                    items.sort((a, b) -> {
+                        int ha = healthRank(a);
+                        int hb = healthRank(b);
+                        if (ha != hb) return Integer.compare(ha, hb);
+                        return compareByTimeDesc(a, b);
+                    });
+
+            default -> // Newest first
+                    items.sort(this::compareByTimeDesc);
+        }
+
+        backupList.refresh();
+    }
+
 
 
     @FXML
@@ -294,6 +350,9 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        applySorting();
+
     }
 
     public void refreshAfterBackup() {
@@ -429,6 +488,34 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
                         "-fx-background-radius:8;"
         );
     }
+
+    private int compareByTimeDesc(Path a, Path b) {
+        try {
+            return Files.getLastModifiedTime(b)
+                    .compareTo(Files.getLastModifiedTime(a));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private int typeRank(Path p) {
+        String dir = p.getParent().getFileName().toString().toUpperCase();
+        return switch (dir) {
+            case "BEFORE_RESTORE" -> 0;
+            case "MANUAL" -> 1;
+            case "AUTO" -> 2;
+            default -> 3;
+        };
+    }
+
+    private int healthRank(Path p) {
+        return switch (DatabaseBackupService.getHealth(p)) {
+            case HEALTHY -> 0;
+            case STALE -> 1;
+            case CORRUPT -> 2;
+        };
+    }
+
 
 
     @FXML
