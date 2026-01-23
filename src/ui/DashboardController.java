@@ -7,10 +7,14 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.InvoiceCopyType;
 import model.UserRole;
@@ -46,6 +50,24 @@ public class DashboardController {
         }
         return systemStatusProvider;
     }
+
+    @FXML
+    private ImageView logoImage;
+
+    private DropShadow logoGlow;
+    private Timeline idlePulse;
+
+    @FXML private StackPane mainLayer;
+    @FXML private VBox restoreOverlay;
+
+    // idle detection
+    private static final Duration IDLE_TIMEOUT = Duration.seconds(8);
+
+    private PauseTransition idleTimer;
+    private boolean isIdle = false;
+
+
+
 
 
     private static final Map<String, String> BREADCRUMB_LABELS = Map.of(
@@ -94,6 +116,9 @@ public class DashboardController {
 
         // Load HOME as root (no animation, no history push)
         loadRootView("HomeView.fxml");
+        setupLogoGlow();
+        setupLogoHover();
+        setupIdleDetection();
 
         backButton.setOnAction(e -> goBack());
         updateBackButton();
@@ -127,6 +152,67 @@ public class DashboardController {
             throw new RuntimeException("Failed to load root view", e);
         }
     }
+
+    private void setupLogoGlow() {
+
+        logoGlow = new DropShadow();
+        logoGlow.setColor(Color.rgb(59, 130, 246, 0.35)); // calm blue
+        logoGlow.setRadius(36);
+        logoGlow.setSpread(0.12);
+
+        logoImage.setEffect(logoGlow);
+
+        idlePulse = new Timeline(
+                new KeyFrame(Duration.ZERO,
+                        new KeyValue(logoGlow.radiusProperty(), 34),
+                        new KeyValue(logoGlow.colorProperty(),
+                                Color.rgb(59,130,246,0.28))
+                ),
+                new KeyFrame(Duration.seconds(3.2),
+                        new KeyValue(logoGlow.radiusProperty(), 44),
+                        new KeyValue(logoGlow.colorProperty(),
+                                Color.rgb(59,130,246,0.45))
+                )
+        );
+
+        idlePulse.setAutoReverse(true);
+        idlePulse.setCycleCount(Animation.INDEFINITE);
+        idlePulse.play();
+    }
+
+    private void setupLogoHover() {
+
+        logoImage.setOnMouseEntered(e -> {
+            idlePulse.stop();
+
+            Timeline hoverPulse = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(logoGlow.radiusProperty(), 46),
+                            new KeyValue(logoGlow.colorProperty(),
+                                    Color.rgb(96,165,250,0.65)) // brighter blue
+                    ),
+                    new KeyFrame(Duration.seconds(1.4),
+                            new KeyValue(logoGlow.radiusProperty(), 56),
+                            new KeyValue(logoGlow.colorProperty(),
+                                    Color.rgb(147,197,253,0.85))
+                    )
+            );
+
+            hoverPulse.setAutoReverse(true);
+            hoverPulse.setCycleCount(Animation.INDEFINITE);
+            hoverPulse.play();
+
+            logoImage.setUserData(hoverPulse);
+        });
+
+        logoImage.setOnMouseExited(e -> {
+            Timeline hoverPulse = (Timeline) logoImage.getUserData();
+            if (hoverPulse != null) hoverPulse.stop();
+
+            idlePulse.play();
+        });
+    }
+
 
 
     private void injectContext(Navigable controller) {
@@ -223,14 +309,21 @@ public class DashboardController {
     private void backupNow() {
         try {
             Path p = DatabaseBackupService.manualBackup("user");
+
             new Alert(Alert.AlertType.INFORMATION,
                     "Backup created:\n" + p.getFileName()).showAndWait();
+
             refreshSystemStatus();
+
+            // ✅ TELL CURRENT VIEW
+            notifyBackupCompleted();
+
         } catch (Exception e) {
             new Alert(Alert.AlertType.ERROR,
                     "Backup failed:\n" + e.getMessage()).showAndWait();
         }
     }
+
 
     /* ================= NAV CORE ================= */
 
@@ -272,10 +365,14 @@ public class DashboardController {
 
                 controller = nav;
 
+                // Always cache controller
+                controllerCache.put(fxml, controller);
+
+// Cache view only if allowed
                 if (cacheable) {
                     viewCache.put(fxml, view);
-                    controllerCache.put(fxml, controller);
                 }
+
             }
 
             // 4️⃣ Lifecycle: leaving current view
@@ -334,6 +431,20 @@ public class DashboardController {
         updateBackButton();
     }
 
+    public void lockUIForRestore() {
+        restoreOverlay.setVisible(true);
+        restoreOverlay.setManaged(true);
+
+        mainLayer.setDisable(true);
+        restoreOverlay.setDisable(false);
+    }
+
+    public void unlockUIAfterRestore() {
+        restoreOverlay.setVisible(false);
+        restoreOverlay.setManaged(false);
+
+        mainLayer.setDisable(false);
+    }
 
 
     /* ================= TRANSITION ================= */
@@ -530,6 +641,74 @@ public class DashboardController {
         );
     }
 
+    /* =========== IDLE DETECTION ==================*/
+
+    private void setupIdleDetection() {
+
+        idleTimer = new PauseTransition(IDLE_TIMEOUT);
+        idleTimer.setOnFinished(e -> enterIdleMode());
+
+        // Any interaction resets idle timer
+        mainLayer.addEventFilter(javafx.scene.input.MouseEvent.ANY, e -> userActive());
+        mainLayer.addEventFilter(javafx.scene.input.KeyEvent.ANY, e -> userActive());
+        mainLayer.addEventFilter(javafx.scene.input.ScrollEvent.ANY, e -> userActive());
+
+        // Start timer immediately
+        idleTimer.playFromStart();
+    }
+
+    private void userActive() {
+
+        // If returning from idle → stop pulse
+        if (isIdle) {
+            exitIdleMode();
+        }
+
+        idleTimer.playFromStart();
+    }
+
+    private void enterIdleMode() {
+        if (isIdle) return;
+
+        isIdle = true;
+        startIdlePulse();
+    }
+
+    private void exitIdleMode() {
+        isIdle = false;
+        stopIdlePulse();
+    }
+
+    private void startIdlePulse() {
+
+        idlePulse.stop();
+
+        idlePulse = new Timeline(
+                new KeyFrame(Duration.ZERO,
+                        new KeyValue(logoGlow.radiusProperty(), 36),
+                        new KeyValue(logoGlow.colorProperty(),
+                                Color.rgb(59, 130, 246, 0.40)) // brighter base
+                ),
+                new KeyFrame(Duration.seconds(2.4),
+                        new KeyValue(logoGlow.radiusProperty(), 64), // wider glow
+                        new KeyValue(logoGlow.colorProperty(),
+                                Color.rgb(96, 165, 250, 0.75)) // clearly visible but calm
+                )
+        );
+
+        idlePulse.setAutoReverse(true);
+        idlePulse.setCycleCount(Animation.INDEFINITE);
+        idlePulse.play();
+    }
+
+
+    private void stopIdlePulse() {
+
+        idlePulse.stop();
+
+        logoGlow.setRadius(36);
+        logoGlow.setColor(Color.rgb(59, 130, 246, 0.35)); // calm default
+    }
 
 
 
@@ -550,4 +729,16 @@ public class DashboardController {
             this.view = view;
         }
     }
+
+    public void notifyBackupCompleted() {
+        if (backStack.isEmpty()) return;
+
+        String currentFxml = backStack.peek().fxml;
+        Navigable controller = controllerCache.get(currentFxml);
+
+        if (controller instanceof RestoreDatabaseController restoreCtrl) {
+            restoreCtrl.refreshAfterBackup();
+        }
+    }
+
 }

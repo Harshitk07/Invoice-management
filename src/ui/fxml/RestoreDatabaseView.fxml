@@ -6,27 +6,76 @@
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="ui.RestoreDatabaseController">
 
+    <!-- HEADER -->
     <top>
-        <VBox spacing="8" style="-fx-padding:20;" VBox.vgrow="ALWAYS">
+        <VBox spacing="10" style="-fx-padding:20;">
             <Label text="Restore Database Backup"
                    style="-fx-font-size:18; -fx-font-weight:bold;"/>
+
             <Label text="Select a backup file. Current database will be replaced."
-                   wrapText="true"/>
+                   wrapText="true"
+                   style="-fx-text-fill:#475569;"/>
+
+            <HBox alignment="CENTER_LEFT">
+                <Button text="🧹 Cleanup Old Manual Backups"
+                        onAction="#cleanupManual"
+                        style="
+                            -fx-background-color:#e5e7eb;
+                            -fx-font-weight:bold;
+                            -fx-padding:6 14;
+                        "/>
+            </HBox>
         </VBox>
     </top>
 
+    <!-- CONTENT -->
     <center>
-        <ListView fx:id="backupList" VBox.vgrow="ALWAYS"/>
+        <VBox spacing="10" style="-fx-padding:0 20 20 20;">
+            <Label fx:id="recommendationLabel"
+                   style="
+                       -fx-padding:8 12;
+                       -fx-background-color:#f8fafc;
+                       -fx-border-color:#e5e7eb;
+                       -fx-border-radius:6;
+                       -fx-background-radius:6;
+                   "/>
+
+            <ListView fx:id="backupList"
+                      VBox.vgrow="ALWAYS"/>
+        </VBox>
     </center>
 
+    <!-- ACTIONS -->
     <bottom>
-        <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding:20;">
+        <HBox spacing="10"
+              alignment="CENTER_RIGHT"
+              style="-fx-padding:20;">
             <Button fx:id="restoreButton"
                     text="Restore"
                     onAction="#restore"
-                    style="-fx-background-color:#c62828; -fx-text-fill:white;"/>
-            <Button text="Cancel" onAction="#close"/>
+                    onMouseEntered="#dangerHoverIn"
+                    onMouseExited="#restoreBaseStyle"
+                    userData="
+            -fx-background-color:#dc2626;
+            -fx-text-fill:white;
+            -fx-font-weight:bold;
+            -fx-background-radius:8;
+            -fx-padding:6 18;
+        "
+                    style="
+            -fx-background-color:#dc2626;
+            -fx-text-fill:white;
+            -fx-font-weight:bold;
+            -fx-background-radius:8;
+            -fx-padding:6 18;
+        "/>
+
+
+            <Button text="Cancel"
+                    onAction="#close"
+                    style="-fx-padding:6 18;"/>
         </HBox>
     </bottom>
 
 </BorderPane>
+

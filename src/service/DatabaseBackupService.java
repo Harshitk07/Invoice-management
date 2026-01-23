@@ -1,6 +1,7 @@
 package service;
 
 import dao.DB;
+import model.BackupHealth;
 
 import java.nio.file.*;
 import java.nio.file.attribute.FileTime;
@@ -44,9 +45,10 @@ public final class DatabaseBackupService {
                 "invoice_" + safe + "_" + TS.format(LocalDateTime.now()) + ".db"
         );
 
-        backupTo(file);
+        backupTo(file, "MANUAL", label);
         return file;
     }
+
 
     /* -------- AUTO BACKUP (ON CLOSE / DAILY) -------- */
 
@@ -59,7 +61,7 @@ public final class DatabaseBackupService {
 
             if (Files.exists(todayFile)) return;
 
-            backupTo(todayFile);
+            backupTo(todayFile, "AUTO", "SYSTEM");
             enforceRetention(AUTO_RETENTION_DAYS);
 
         } catch (Exception e) {
@@ -69,7 +71,30 @@ public final class DatabaseBackupService {
 
     /* -------- RESTORE -------- */
 
+    private static void validateBackup(Path backup) throws Exception {
+
+        Path metaFile = backup.resolveSibling(backup.getFileName() + ".meta");
+
+        if (!Files.exists(metaFile)) {
+            throw new IllegalStateException("Backup metadata missing");
+        }
+
+        BackupMetadata meta =
+                BackupMetadata.parse(Files.readString(metaFile));
+
+        String current = ChecksumUtil.sha256(backup);
+
+        if (!current.equals(meta.checksum)) {
+            throw new IllegalStateException(
+                    "Backup file is corrupted (checksum mismatch)"
+            );
+        }
+    }
+
+
     public static void restore(Path backupFile) throws Exception {
+
+        validateBackup(backupFile);
 
         backupBeforeRestore();
 
@@ -99,22 +124,40 @@ public final class DatabaseBackupService {
 
     /* ================= CORE ================= */
 
-    private static void backupTo(Path target) throws Exception {
+    private static void backupTo(Path target, String type, String user) throws Exception {
 
         try (Connection c = DB.connect();
              Statement s = c.createStatement()) {
 
-            // Ensure WAL flushed
             s.execute("PRAGMA wal_checkpoint(FULL);");
 
-            // SQLite-native safe copy
             s.execute(
                     "VACUUM INTO '" +
                             target.toAbsolutePath().toString().replace("\\", "/") +
                             "'"
             );
         }
+
+        // ===== METADATA =====
+        String checksum = ChecksumUtil.sha256(target);
+        long size = Files.size(target);
+
+        String id = target.getFileName().toString();
+
+        BackupMetadata meta = new BackupMetadata(
+                id,
+                user,
+                size,
+                checksum,
+                type
+        );
+
+        Files.writeString(
+                target.resolveSibling(target.getFileName() + ".meta"),
+                meta.serialize()
+        );
     }
+
 
     /* ================= RETENTION ================= */
 
@@ -131,6 +174,8 @@ public final class DatabaseBackupService {
                         FileTime t = Files.getLastModifiedTime(p);
                         if (t.toInstant().isBefore(cutoff)) {
                             Files.deleteIfExists(p);
+                            Files.deleteIfExists(p.resolveSibling(p.getFileName() + ".meta"));
+
                         }
                     } catch (Exception ignored) {}
                 });
@@ -138,7 +183,7 @@ public final class DatabaseBackupService {
 
     public static List<Path> listAllBackups() {
         try {
-            return Files.walk(BACKUP_DIR, 1)
+            return Files.walk(BACKUP_DIR, 2)
                     .filter(p -> p.toString().endsWith(".db"))
                     .sorted((a, b) -> b.getFileName().toString()
                             .compareTo(a.getFileName().toString()))
@@ -147,6 +192,7 @@ public final class DatabaseBackupService {
             throw new RuntimeException("Failed to list backups", e);
         }
     }
+
 
     public static String getLastAutoBackupStatus() {
         try {
@@ -208,13 +254,167 @@ public final class DatabaseBackupService {
                 "pre_restore_" + TS.format(LocalDateTime.now()) + ".db"
         );
 
-        backupTo(target);
+        backupTo(target, "AUTO", "SYSTEM"); // pre-restore safety
         return target;
     }
 
     public static Path getCurrentDbPath() {
         return Paths.get("shree_uma_invoice.db").toAbsolutePath();
     }
+
+    public static BackupHealth getHealth(Path backup) {
+        try {
+            Path metaFile = backup.resolveSibling(backup.getFileName() + ".meta");
+            if (!Files.exists(metaFile)) return BackupHealth.CORRUPT;
+
+            BackupMetadata meta =
+                    BackupMetadata.parse(Files.readString(metaFile));
+
+            String current = ChecksumUtil.sha256(backup);
+            if (!current.equals(meta.checksum)) return BackupHealth.CORRUPT;
+
+            FileTime t = Files.getLastModifiedTime(backup);
+            Instant cutoff = Instant.now().minus(7, ChronoUnit.DAYS);
+
+            return t.toInstant().isBefore(cutoff)
+                    ? BackupHealth.STALE
+                    : BackupHealth.HEALTHY;
+
+        } catch (Exception e) {
+            return BackupHealth.CORRUPT;
+        }
+    }
+
+    public static Path getRecommendedRestore() {
+
+        return listAllBackups().stream()
+                .filter(p -> getHealth(p) == BackupHealth.HEALTHY)
+                .sorted((a, b) -> {
+                    try {
+                        return Files.getLastModifiedTime(b)
+                                .compareTo(Files.getLastModifiedTime(a));
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    public static int cleanupManualBackups(int keepLast) {
+
+        try {
+            List<Path> manuals =
+                    Files.list(MANUAL_DIR)
+                            .filter(p -> p.toString().endsWith(".db"))
+                            .sorted((a, b) -> {
+                                try {
+                                    return Files.getLastModifiedTime(b)
+                                            .compareTo(Files.getLastModifiedTime(a));
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            })
+                            .toList();
+
+            int deleted = 0;
+
+            for (int i = keepLast; i < manuals.size(); i++) {
+                Path db = manuals.get(i);
+                Files.deleteIfExists(db);
+                Files.deleteIfExists(db.resolveSibling(db.getFileName() + ".meta"));
+                deleted++;
+            }
+
+            return deleted;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Manual cleanup failed", e);
+        }
+    }
+
+    public static boolean isBackupGrowingAbnormally() {
+
+        try {
+            List<Path> autos =
+                    Files.list(AUTO_DIR)
+                            .filter(p -> p.toString().endsWith(".db"))
+                            .sorted((a, b) -> {
+                                try {
+                                    return Files.getLastModifiedTime(b)
+                                            .compareTo(Files.getLastModifiedTime(a));
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            })
+                            .limit(5)
+                            .toList();
+
+            if (autos.size() < 2) return false;
+
+            long latest = Files.size(autos.get(0));
+            long older  = Files.size(autos.get(autos.size() - 1));
+
+            return latest > older * 1.5; // 50% growth
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static String prettyBackupName(Path file) {
+
+        String raw = file.getFileName().toString().replace(".db", "");
+        String folder = file.getParent().getFileName().toString().toUpperCase();
+
+        // Match yyyy-MM-dd_HH-mm-ss
+        var m = java.util.regex.Pattern
+                .compile("(\\d{4}-\\d{2}-\\d{2})(?:_(\\d{2}-\\d{2}-\\d{2}))?")
+                .matcher(raw);
+
+        if (!m.find()) {
+            return raw.replace("_", " ");
+        }
+
+        String date = m.group(1);
+        String time = m.group(2);
+
+        try {
+            LocalDateTime dt = time != null
+                    ? LocalDateTime.parse(
+                    date + "_" + time,
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")
+            )
+                    : LocalDate.parse(date).atStartOfDay();
+
+            return switch (folder) {
+
+                case "MANUAL" ->
+                        "[Manual Backup]  • " +
+                                dt.format(DateTimeFormatter.ofPattern(
+                                        "dd MMM yyyy, hh:mm a"));
+
+                case "AUTO" ->
+                        "[Auto Backup]  • " +
+                                dt.format(DateTimeFormatter.ofPattern(
+                                        "dd MMM yyyy"));
+
+                case "BEFORE_RESTORE" ->
+                        "[Before Restore]  • " +
+                                dt.format(DateTimeFormatter.ofPattern(
+                                        "dd MMM yyyy, hh:mm a"));
+
+                default ->
+                        dt.format(DateTimeFormatter.ofPattern(
+                                "dd MMM yyyy, hh:mm a"));
+            };
+
+        } catch (Exception e) {
+            return raw.replace("_", " ");
+        }
+    }
+
+
 
 
     /* ================= INIT ================= */

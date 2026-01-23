@@ -33,9 +33,7 @@
 
                 <Button text="Save Item"
                         onAction="#save"
-                        GridPane.rowIndex="1"
-                        GridPane.columnIndex="2"
-                        GridPane.halignment="RIGHT"/>
+                        GridPane.rowIndex="1" GridPane.halignment="RIGHT"/>
             </GridPane>
         </VBox>
     </top>
