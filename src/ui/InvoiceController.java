@@ -1,5 +1,6 @@
 package ui;
 
+import context.CompanyContext;
 import dao.CustomerDAO;
 import dao.InvoiceDAO;
 import dao.ItemDAO;
@@ -27,13 +28,12 @@ import model.*;
 import print.PrintInvoiceBuilder;
 import ui.interfaces.Navigable;
 import ui.interfaces.Refreshable;
-import ui.interfaces.RoleAware;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InvoiceController implements Refreshable, RoleAware, Navigable {
+public class InvoiceController implements Refreshable,Navigable {
 
     @Override
     public void refresh() {
@@ -41,17 +41,13 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
     }
 
     private DashboardController dashboard;
-    private UserRole role;
 
     @Override
     public void setDashboard(DashboardController dashboard) {
         this.dashboard = dashboard;
     }
 
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
+
 
     @Override
     public void onNavigateTo() {
@@ -79,6 +75,11 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
 
     @FXML private TextField invoiceNoField;
     @FXML private DatePicker invoiceDatePicker;
+    @FXML private Label companyNameLabel;
+    @FXML private Label companyDescriptionLabel;
+    @FXML private Label companyGstLabel;
+    @FXML private Label companyContactLabel;
+
 
     /* ================= BUYER ================= */
 
@@ -149,6 +150,7 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
     private Boolean lockedIntraState = null;
     private boolean isDraft = true;
     private Customer previousCustomer = null;
+    private Invoice draftSnapshot; // seller snapshot cache
 
 
     /* ================= CALCULATED TOTALS ================= */
@@ -235,6 +237,21 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
         customerBox.setEditable(false);
         setupTable();
         addItemRow();
+        loadDraftCompanyHeader();
+
+    }
+
+    /* ========== company profile =========*/
+
+    private void loadDraftCompanyHeader() {
+        CompanyProfile c = CompanyContext.get();
+
+        companyNameLabel.setText(c.getLegalName());
+        companyDescriptionLabel.setText(c.getDescription());
+        companyGstLabel.setText("GST No: " + c.getGstin());
+        companyContactLabel.setText(
+                "Phone: " + c.getPhoneNo() + " | Email: " + c.getEmail()
+        );
     }
 
 
@@ -642,18 +659,13 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
         }
 
         validateBeforeSave();
-
-        if (customerBox.getValue() == null) {
-            info("Select a customer");
+        try {
+            validateBeforeSave();
+        } catch (RuntimeException ex) {
+            info(ex.getMessage());
             return;
         }
 
-        for (InvoiceItem r : rows) {
-            if (r.getItemName() == null || r.getItemName().isBlank()) {
-                info("Remove empty item rows before saving");
-                return;
-            }
-        }
 
         Invoice invoice = buildInvoiceFromUI();
         List<InvoiceItem> items = new ArrayList<>(rows);
@@ -938,6 +950,32 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
 
         Invoice inv = new Invoice();
 
+        if (draftSnapshot == null) {
+            CompanyProfile c = CompanyContext.get();
+
+            draftSnapshot = new Invoice();
+            draftSnapshot.setSellerName(c.getLegalName());
+            draftSnapshot.setSellerDescription(c.getDescription());
+            draftSnapshot.setSellerAddress(c.getAddress());
+            draftSnapshot.setSellerGst(c.getGstin());
+            draftSnapshot.setSellerPhone(c.getPhoneNo());
+            draftSnapshot.setSellerEmail(c.getEmail());
+            draftSnapshot.setSellerBankName(c.getBankName());
+            draftSnapshot.setSellerAccountNo(c.getAccountNo());
+            draftSnapshot.setSellerIfsc(c.getIfsc());
+        }
+
+// 🔒 COPY SNAPSHOT (NOT CONTEXT)
+        inv.setSellerName(draftSnapshot.getSellerName());
+        inv.setSellerDescription(draftSnapshot.getSellerDescription());
+        inv.setSellerAddress(draftSnapshot.getSellerAddress());
+        inv.setSellerGst(draftSnapshot.getSellerGst());
+        inv.setSellerPhone(draftSnapshot.getSellerPhone());
+        inv.setSellerEmail(draftSnapshot.getSellerEmail());
+        inv.setSellerBankName(draftSnapshot.getSellerBankName());
+        inv.setSellerAccountNo(draftSnapshot.getSellerAccountNo());
+        inv.setSellerIfsc(draftSnapshot.getSellerIfsc());
+
         // -------- Invoice meta --------
         inv.setInvoiceDate(resolveInvoiceDate());
         inv.setTermsOfPayment("CREDIT");
@@ -1146,6 +1184,8 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
 
 
     private void resetInvoice() {
+        draftSnapshot = null; // 🔑 CRITICAL
+        enterDraftMode();
         rows.clear();
         lockedIntraState = null;
         previousCustomer = null;
@@ -1160,9 +1200,32 @@ public class InvoiceController implements Refreshable, RoleAware, Navigable {
 
         isDraft = false;                    // 🔑 first
         enterFinalMode(invoiceNo);          // 🔑 lock UI
+        loadCompanyHeader(invoice);
         invoiceDatePicker.setDisable(true); // 🔑 hard lock
 
         return invoiceNo;
+    }
+
+
+    private void loadCompanyHeader(Invoice inv) {
+
+        if (inv == null || inv.getSellerName() == null || inv.getSellerName().isBlank()) {
+            // 🔴 HARD FAIL – legacy / corrupt invoice
+            companyNameLabel.setText("UNKNOWN SELLER");
+            companyDescriptionLabel.setText("Legacy invoice – seller snapshot missing");
+            companyGstLabel.setText("");
+            companyContactLabel.setText("");
+            return;
+        }
+
+        // ✅ SNAPSHOT ONLY
+        companyNameLabel.setText(inv.getSellerName());
+        companyDescriptionLabel.setText(inv.getSellerDescription());
+        companyGstLabel.setText("GST No: " + inv.getSellerGst());
+        companyContactLabel.setText(
+                "Phone: " + inv.getSellerPhone() +
+                        " | Email: " + inv.getSellerEmail()
+        );
     }
 
 

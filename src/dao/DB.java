@@ -91,39 +91,55 @@ public final class DB {
             """);
 
             st.execute("""
-                CREATE TABLE IF NOT EXISTS invoices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    invoice_no INTEGER UNIQUE NOT NULL,
-                    invoice_date TEXT NOT NULL,
+    CREATE TABLE IF NOT EXISTS invoices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_no INTEGER UNIQUE NOT NULL,
+        invoice_date TEXT NOT NULL,
 
-                    buyer_name TEXT,
-                    buyer_address TEXT,
-                    buyer_gst TEXT,
-                    buyer_state TEXT,
-                    buyer_state_code TEXT,
+        /* ===== SELLER SNAPSHOT ===== */
+        seller_name TEXT,
+        seller_description TEXT,
+        seller_address TEXT,
+        seller_gst TEXT,
+        seller_phone TEXT,
+        seller_email TEXT,
+        seller_bank_name TEXT,
+        seller_account_no TEXT,
+        seller_ifsc TEXT,
 
-                    consignee_name TEXT,
-                    consignee_address TEXT,
-                    consignee_gst TEXT,
-                    consignee_state TEXT,
-                    consignee_state_code TEXT,
+        /* ===== BUYER ===== */
+        buyer_name TEXT,
+        buyer_address TEXT,
+        buyer_gst TEXT,
+        buyer_state TEXT,
+        buyer_state_code TEXT,
 
-                    terms_of_payment TEXT,
-                    dispatch_through TEXT,
-                    po_no TEXT,
-                    po_date TEXT,
-                    dc_no TEXT,
-                    dc_date TEXT,
-                    eway_bill_no TEXT,
+        /* ===== CONSIGNEE ===== */
+        consignee_name TEXT,
+        consignee_address TEXT,
+        consignee_gst TEXT,
+        consignee_state TEXT,
+        consignee_state_code TEXT,
 
-                    taxable_subtotal REAL NOT NULL,
-                    cgst REAL NOT NULL,
-                    sgst REAL NOT NULL,
-                    igst REAL NOT NULL,
-                    round_off REAL NOT NULL,
-                    grand_total REAL NOT NULL
-                )
-            """);
+        /* ===== META ===== */
+        terms_of_payment TEXT,
+        dispatch_through TEXT,
+        po_no TEXT,
+        po_date TEXT,
+        dc_no TEXT,
+        dc_date TEXT,
+        eway_bill_no TEXT,
+
+        /* ===== TOTALS ===== */
+        taxable_subtotal REAL NOT NULL,
+        cgst REAL NOT NULL,
+        sgst REAL NOT NULL,
+        igst REAL NOT NULL,
+        round_off REAL NOT NULL,
+        grand_total REAL NOT NULL
+    )
+""");
+
 
             st.execute("""
                 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -150,6 +166,16 @@ public final class DB {
             migrate(st, "ALTER TABLE invoices ADD COLUMN terms_of_payment TEXT");
             migrate(st, "ALTER TABLE invoices ADD COLUMN dispatch_through TEXT");
             migrate(st, "ALTER TABLE invoices ADD COLUMN eway_bill_no TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_name TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_description TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_address TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_gst TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_phone TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_email TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_bank_name TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_account_no TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN seller_ifsc TEXT");
+
         }
     }
 

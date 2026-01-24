@@ -1,5 +1,7 @@
 package ui;
 
+import context.Capability;
+import context.CapabilityGate;
 import dao.ItemDAO;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.*;
@@ -13,14 +15,12 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import model.Item;
-import model.UserRole;
 import ui.interfaces.Navigable;
-import ui.interfaces.RoleAware;
 
-public class ItemMasterController implements Navigable, RoleAware {
+
+public class ItemMasterController implements Navigable{
 
     private DashboardController dashboard;
-    private UserRole role;
 
 
     @FXML private TextField name, hsn, rate;
@@ -40,6 +40,8 @@ public class ItemMasterController implements Navigable, RoleAware {
 
     @FXML
     public void initialize() {
+
+        applyCapabilityUI();
 
         // ---------- Table setup ----------
         table.setEditable(true);
@@ -194,25 +196,25 @@ public class ItemMasterController implements Navigable, RoleAware {
     @Override
     public void onNavigateTo() {
         refreshItems();
+        applyCapabilityUI();
     }
 
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-        applyRoleUI();
+
+
+    private void applyCapabilityUI() {
+
+        boolean canEditItems =
+                CapabilityGate.allowed(Capability.ITEM_MASTER_EDIT);
+
+        name.setDisable(!canEditItems);
+        hsn.setDisable(!canEditItems);
+        rate.setDisable(!canEditItems);
+        unitCombo.setDisable(!canEditItems);
+        gstCombo.setDisable(!canEditItems);
+
+        table.setEditable(canEditItems);
     }
 
-    private void applyRoleUI() {
-        boolean admin = role == UserRole.ADMIN;
-
-        name.setDisable(!admin);
-        hsn.setDisable(!admin);
-        rate.setDisable(!admin);
-        unitCombo.setDisable(!admin);
-        gstCombo.setDisable(!admin);
-
-        table.setEditable(admin);
-    }
 
     private void refreshItems() {
         data.setAll(ItemDAO.findAll());

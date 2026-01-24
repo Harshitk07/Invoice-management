@@ -7,18 +7,17 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import model.UserRole;
-import ui.interfaces.RoleAware;
+import context.Capability;
+import context.CapabilityGate;
 import ui.interfaces.Navigable;
 import ui.interfaces.SystemStatusSnapshot;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class HomeController implements Navigable, RoleAware {
+public class HomeController implements Navigable{
 
     private DashboardController dashboard;
-    private UserRole role;
     private final Set<String> animatedOnce = new HashSet<>();
 
 
@@ -39,16 +38,14 @@ public class HomeController implements Navigable, RoleAware {
         this.dashboard = dashboard;
     }
 
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-        applyRoleVisibility();
-    }
+
 
     @Override
     public void onNavigateTo() {
         refreshSystemStatus();
+        applyCapabilityVisibility();
     }
+
 
 
 
@@ -72,6 +69,9 @@ public class HomeController implements Navigable, RoleAware {
         installHover(coreOpsCard, 1.015, 22);
         installHover(analyticsCard, 1.015, 16);
         installHover(personalToolsCard, 1.015, 14);
+
+        applyCapabilityVisibility();
+
     }
 
 
@@ -114,18 +114,7 @@ public class HomeController implements Navigable, RoleAware {
         new ParallelTransition(fade, slide).play();
     }
 
-    private void applyRoleVisibility() {
 
-        if (role == UserRole.STAFF) {
-            personalToolsCard.setManaged(false);
-            personalToolsCard.setVisible(false);
-        }
-
-        if (role == UserRole.PERSONAL) {
-            analyticsCard.setManaged(false);
-            analyticsCard.setVisible(false);
-        }
-    }
 
     private void installHover(Node node, double scale, double shadowRadius) {
 
@@ -198,6 +187,20 @@ public class HomeController implements Navigable, RoleAware {
         });
     }
 
+    private void applyCapabilityVisibility() {
+
+        boolean showAnalytics =
+                CapabilityGate.allowed(Capability.VIEW_ANALYTICS);
+
+        boolean showPersonalTools =
+                CapabilityGate.allowed(Capability.PERSONAL_TOOLS);
+
+        analyticsCard.setManaged(showAnalytics);
+        analyticsCard.setVisible(showAnalytics);
+
+        personalToolsCard.setManaged(showPersonalTools);
+        personalToolsCard.setVisible(showPersonalTools);
+    }
 
 
 

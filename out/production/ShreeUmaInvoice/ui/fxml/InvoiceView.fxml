@@ -38,11 +38,11 @@
 
                 <!-- ================= HEADER ================= -->
                 <VBox alignment="CENTER" spacing="4">
-                    <Label text="SHREE UMA ASSOCIATES"
+                    <Label fx:id="companyNameLabel"
                            style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-                    <Label text="Govt. Order Supply &amp; Contractors"/>
-                    <Label text="GST No: 37AFPTK3972K1ZN"/>
-                    <Label text="Phone: 8330912353 | Email: ashokekumar122@example.com"
+                    <Label fx:id="companyDescriptionLabel"/>
+                    <Label fx:id="companyGstLabel"/>
+                    <Label fx:id="companyContactLabel"
                            style="-fx-font-size: 11px;"/>
 
                     <Label text="TAX INVOICE"

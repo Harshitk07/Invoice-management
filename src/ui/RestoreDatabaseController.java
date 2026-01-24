@@ -4,27 +4,22 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-import model.UserRole;
 import service.DatabaseBackupService;
 import ui.interfaces.Navigable;
-import ui.interfaces.RoleAware;
+import context.Capability;
+import context.CapabilityGate;
 
 import javafx.scene.input.MouseEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-public class RestoreDatabaseController implements Navigable, RoleAware {
+public class RestoreDatabaseController implements Navigable{
 
     private DashboardController dashboard;
-    private UserRole role;
 
     @FXML
     private Label recommendationLabel;
@@ -35,10 +30,6 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
         this.dashboard = dashboard;
     }
 
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
 
     @Override
     public void onNavigateTo() {
@@ -70,31 +61,14 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
     @FXML
     public void initialize() {
 
-        restoreButton.disableProperty()
-                .bind(backupList.getSelectionModel()
-                        .selectedItemProperty()
-                        .isNull());
+        restoreButton.disableProperty().bind(
+                backupList.getSelectionModel().selectedItemProperty().isNull()
+        );
 
-
-        if (!Files.exists(BACKUP_ROOT)) return;
-
-        try {
-            Files.walk(BACKUP_ROOT, 2)
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".db"))
-                    .sorted((a, b) -> {
-                        try {
-                            return Files.getLastModifiedTime(b)
-                                    .compareTo(Files.getLastModifiedTime(a));
-                        } catch (Exception e) {
-                            return 0;
-                        }
-                    })
-                    .forEach(backupList.getItems()::add);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!CapabilityGate.allowed(Capability.SYSTEM_RESTORE)) {
+            restoreButton.setDisable(true);
         }
+
 
         backupList.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -153,7 +127,6 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
         sortBox.setValue("Newest first");
 
         sortBox.valueProperty().addListener((obs, o, n) -> applySorting());
-
 
     }
 
@@ -382,11 +355,13 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
     @FXML
     private void cleanupManual() {
 
-        if (role != UserRole.ADMIN) {
+        if (!CapabilityGate.allowed(Capability.SYSTEM_MAINTENANCE)) {
             new Alert(Alert.AlertType.ERROR,
-                    "Admin access required").showAndWait();
+                    "You do not have permission to perform this action.")
+                    .showAndWait();
             return;
         }
+
 
         Dialog<Integer> dialog = new Dialog<>();
         dialog.setTitle("Manual Backup Cleanup");
@@ -464,7 +439,6 @@ public class RestoreDatabaseController implements Navigable, RoleAware {
             refreshAfterBackup();
         });
     }
-
 
 
     @FXML

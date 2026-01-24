@@ -25,10 +25,8 @@ public final class InvoiceDAO {
             throw new IllegalArgumentException("Invoice must contain at least one item");
         }
 
-        Connection con = null;
+        try (Connection con = DB.connect()) {
 
-        try {
-            con = DB.connect();
             con.setAutoCommit(false);
 
             int invoiceNo = getNextInvoiceNo(con);
@@ -41,13 +39,10 @@ public final class InvoiceDAO {
             return invoiceNo;
 
         } catch (Exception e) {
-            rollbackQuietly(con);
             throw new RuntimeException("Failed to save invoice", e);
-
-        } finally {
-            closeQuietly(con); // 🔒 MUST close before print starts
         }
     }
+
 
     /* ================= INTERNAL ================= */
 
@@ -64,31 +59,47 @@ public final class InvoiceDAO {
     private static int insertInvoice(Connection con, Invoice inv) throws SQLException {
 
         String sql = """
-            INSERT INTO invoices (
-                invoice_no,
-                invoice_date,
+    INSERT INTO invoices (
+        invoice_no,
+        invoice_date,
 
-                buyer_name, buyer_address, buyer_gst,
-                buyer_state, buyer_state_code,
+        /* ===== SELLER SNAPSHOT ===== */
+        seller_name,
+        seller_description,
+        seller_address,
+        seller_gst,
+        seller_phone,
+        seller_email,
+        seller_bank_name,
+        seller_account_no,
+        seller_ifsc,
 
-                consignee_name, consignee_address, consignee_gst,
-                consignee_state, consignee_state_code,
+        /* ===== BUYER ===== */
+        buyer_name, buyer_address, buyer_gst,
+        buyer_state, buyer_state_code,
 
-                po_no, po_date,
-                dc_no, dc_date,
+        /* ===== CONSIGNEE ===== */
+        consignee_name, consignee_address, consignee_gst,
+        consignee_state, consignee_state_code,
 
-                dispatch_through,
-                eway_bill_no,
+        /* ===== META ===== */
+        terms_of_payment,
+        po_no, po_date,
+        dc_no, dc_date,
+        dispatch_through,
+        eway_bill_no,
 
-                taxable_subtotal,
-                cgst,
-                sgst,
-                igst,
-                round_off,
-                grand_total
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """;
+        /* ===== TOTALS ===== */
+        taxable_subtotal,
+        cgst,
+        sgst,
+        igst,
+        round_off,
+        grand_total
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""";
+
 
         try (PreparedStatement ps =
                      con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -97,6 +108,17 @@ public final class InvoiceDAO {
 
             ps.setInt(i++, inv.getInvoiceNo());
             ps.setString(i++, inv.getInvoiceDate() != null ? inv.getInvoiceDate().toString() : null);
+
+            // ===== SELLER =====
+            ps.setString(i++, inv.getSellerName());
+            ps.setString(i++, inv.getSellerDescription());
+            ps.setString(i++, inv.getSellerAddress());
+            ps.setString(i++, inv.getSellerGst());
+            ps.setString(i++, inv.getSellerPhone());
+            ps.setString(i++, inv.getSellerEmail());
+            ps.setString(i++, inv.getSellerBankName());
+            ps.setString(i++, inv.getSellerAccountNo());
+            ps.setString(i++, inv.getSellerIfsc());
 
             ps.setString(i++, inv.getBuyerName());
             ps.setString(i++, inv.getBuyerAddress());
@@ -110,6 +132,7 @@ public final class InvoiceDAO {
             ps.setString(i++, inv.getConsigneeState());
             ps.setString(i++, inv.getConsigneeStateCode());
 
+            ps.setString(i++, inv.getTermsOfPayment());
             ps.setString(i++, inv.getPoNo());
             ps.setString(i++, inv.getPoDate() != null ? inv.getPoDate().toString() : null);
             ps.setString(i++, inv.getDcNo());
@@ -199,6 +222,18 @@ public final class InvoiceDAO {
                 inv._setInvoiceDateFromDB(
                         parseInvoiceDate(rs.getString("invoice_date"))
                 );
+
+                // ===== SELLER SNAPSHOT =====
+                inv.setSellerName(rs.getString("seller_name"));
+                inv.setSellerDescription(rs.getString("seller_description"));
+                inv.setSellerAddress(rs.getString("seller_address"));
+                inv.setSellerGst(rs.getString("seller_gst"));
+                inv.setSellerPhone(rs.getString("seller_phone"));
+                inv.setSellerEmail(rs.getString("seller_email"));
+                inv.setSellerBankName(rs.getString("seller_bank_name"));
+                inv.setSellerAccountNo(rs.getString("seller_account_no"));
+                inv.setSellerIfsc(rs.getString("seller_ifsc"));
+
 
                 inv.setBuyerName(rs.getString("buyer_name"));
                 inv.setBuyerAddress(rs.getString("buyer_address"));

@@ -8,26 +8,25 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.GridPane;
 import model.Customer;
-import model.UserRole;
 import ui.interfaces.Navigable;
-import ui.interfaces.RoleAware;
+import context.Capability;
+import context.CapabilityGate;
 
-public class CustomerMasterController implements Navigable, RoleAware {
+
+public class CustomerMasterController implements Navigable{
 
     private DashboardController dashboard;
-    private UserRole role;
 
-    @Override
-    public void setRole(UserRole role) {
-        this.role = role;
-        applyRoleUI();
+
+    private void applyCapabilityUI() {
+
+        boolean canEditCustomers =
+                CapabilityGate.allowed(Capability.CUSTOMER_MASTER_EDIT);
+
+        table.setEditable(canEditCustomers);
+        activeCol.setEditable(canEditCustomers);
     }
 
-    private void applyRoleUI() {
-        boolean admin = role == UserRole.ADMIN;
-        table.setEditable(admin);
-        activeCol.setEditable(admin);
-    }
 
 
     @Override
@@ -124,19 +123,23 @@ public class CustomerMasterController implements Navigable, RoleAware {
 
         reload();
         table.setItems(data);
+        applyCapabilityUI();
+
     }
+
 
     // ================= ADD CUSTOMER =================
 
     @FXML
     private void openAddCustomerDialog() {
 
-        if (role != UserRole.ADMIN) {
+        if (!CapabilityGate.allowed(Capability.CUSTOMER_MASTER_EDIT)) {
             new Alert(Alert.AlertType.WARNING,
                     "You do not have permission to add customers.")
                     .showAndWait();
             return;
         }
+
 
         Dialog<Customer> dialog = new Dialog<>();
         dialog.setTitle("Add Customer");
@@ -251,6 +254,8 @@ public class CustomerMasterController implements Navigable, RoleAware {
     @Override
     public void onNavigateTo() {
         reload();
+        applyCapabilityUI();
     }
+
 
 }

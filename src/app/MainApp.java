@@ -1,5 +1,9 @@
 package app;
 
+import context.AppMode;
+import context.CapabilityGate;
+import context.CompanyContext;
+import context.UserContext;
 import dao.DB;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -8,6 +12,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import service.DatabaseBackupService;
 import service.DefaultSystemStatusProvider;
+import service.StaticCompanyProfileProvider;
+import service.StaticUserContextProvider;
 import ui.DashboardController;
 import ui.interfaces.SystemStatusProvider;
 
@@ -19,6 +25,14 @@ public class MainApp extends Application {
         // ================= BOOTSTRAP (NON-NEGOTIABLE) =================
         DB.init();
         DatabaseBackupService.autoBackupIfNeeded();
+
+// ================= CONTEXT BOOTSTRAP =================
+        CompanyContext.init(new StaticCompanyProfileProvider());
+        UserContext.init(new StaticUserContextProvider());
+
+// OWNER install for now (full access)
+        CapabilityGate.setMode(AppMode.OWNER);
+
 
         // ================= APP SERVICES =================
         SystemStatusProvider systemStatusProvider =
@@ -40,7 +54,7 @@ public class MainApp extends Application {
         // ================= STAGE =================
         Scene scene = new Scene(root);
 
-        stage.setTitle("Shree Uma Associates - Invoice");
+        stage.setTitle(ProductInfo.WINDOW_TITLE);
         stage.setScene(scene);
         stage.setMaximized(true);
 

@@ -1,5 +1,6 @@
 package print;
 
+import context.CompanyContext;
 import javafx.geometry.*;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -8,6 +9,7 @@ import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import model.CompanyProfile;
 import model.Invoice;
 import model.InvoiceCopyType;
 import model.InvoiceItem;
@@ -64,9 +66,14 @@ public class PrintInvoiceBuilder {
     private static final int TABLE_ROWS = 12;
     private static final double ROW_HEIGHT = 28;
 
+    private SellerSnapshot seller;
+
+
     /* ================================================= */
 
     public VBox build(Invoice inv, List<InvoiceItem> items, InvoiceCopyType copy) {
+
+        this.seller = resolveSeller(inv);
         VBox doc = new VBox();
         doc.setAlignment(Pos.CENTER);
 
@@ -103,6 +110,55 @@ public class PrintInvoiceBuilder {
         return doc;
     }
 
+    private static final class SellerSnapshot {
+        String name;
+        String description;
+        String address;
+        String gst;
+        String phone;
+        String email;
+        String bank;
+        String account;
+        String ifsc;
+    }
+
+    private SellerSnapshot resolveSeller(Invoice inv) {
+
+        SellerSnapshot s = new SellerSnapshot();
+
+        // ✅ NEW invoices (snapshot stored in invoice)
+        if (inv.getSellerName() != null && !inv.getSellerName().isBlank()) {
+
+            s.name        = inv.getSellerName();
+            s.description = inv.getSellerDescription();
+            s.address     = inv.getSellerAddress();
+            s.gst         = inv.getSellerGst();
+            s.phone       = inv.getSellerPhone();
+            s.email       = inv.getSellerEmail();
+            s.bank        = inv.getSellerBankName();
+            s.account     = inv.getSellerAccountNo();
+            s.ifsc        = inv.getSellerIfsc();
+
+            return s;
+        }
+
+        // ⚠ LEGACY invoices → fallback to context
+        CompanyProfile c = CompanyContext.get();
+
+        s.name        = c.getLegalName();
+        s.description = c.getDescription();
+        s.address     = c.getAddress();
+        s.gst         = c.getGstin();
+        s.phone       = c.getPhoneNo();
+        s.email       = c.getEmail();
+        s.bank        = c.getBankName();
+        s.account     = c.getAccountNo();
+        s.ifsc        = c.getIfsc();
+
+        return s;
+    }
+
+
 
     /* ================= HEADER ================= */
 
@@ -121,12 +177,13 @@ public class PrintInvoiceBuilder {
 
 
         VBox left = new VBox(2,
-                bold("SHREE UMA ASSOCIATES", 28),
-                headerText("Govt. Order Supply & Contractors"),
-                headerText("Door No. 58-3-10, Ramanaidu Colony"),
-                headerText("GST No: 37AFPTK3972K1ZN"),
-                headerText("Phone: 8330912353   Email: ashokekumar122@gmail.com")
+                bold(seller.name, 28),
+                headerText(seller.description),
+                headerText(seller.address),
+                headerText("GST No: " + seller.gst),
+                headerText("Phone: " + seller.phone + "   Email: " + seller.email)
         );
+
 
         Label copyLabel = (copy != null)
                 ? bold(copy.getLabel(), 12)
@@ -564,12 +621,14 @@ public class PrintInvoiceBuilder {
         );
         labelBox.setPadding(new Insets(6, 10, 6, 8));
 
+
         // ---- VALUE COLUMN ----
         VBox valueBox = new VBox(6,
-                headerText("Punjab National Bank"),
-                headerText("4481002100003591"),
-                headerText("PUNB0448100")
+                headerText(seller.bank),
+                headerText(seller.account),
+                headerText(seller.ifsc)
         );
+
         valueBox.setPadding(new Insets(6, 8, 6, 10));
 
         // ---- VERTICAL DIVIDER ----
@@ -639,7 +698,7 @@ public class PrintInvoiceBuilder {
         left.setPadding(new Insets(10));
 
         VBox right = new VBox(53,
-                bold("For SHREE UMA ASSOCIATES", 15),
+                bold("For " + seller.name.toUpperCase(), 15),
                 bold("Authorised Signatory", 11)
         );
         right.setAlignment(Pos.TOP_RIGHT);

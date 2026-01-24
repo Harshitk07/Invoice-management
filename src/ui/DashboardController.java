@@ -1,5 +1,7 @@
 package ui;
 
+import context.CompanyContext;
+import context.UserContext;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -17,20 +19,37 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.InvoiceCopyType;
-import model.UserRole;
 import service.DatabaseBackupService;
-import ui.interfaces.RoleAware;
 import ui.interfaces.Navigable;
 import ui.interfaces.SystemStatusProvider;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Consumer;
 
 public class DashboardController {
 
-    private UserRole currentRole = UserRole.ADMIN; // later load from login
+    @FXML private Label companyNameLabel;
+    @FXML private Label userRoleLabel;
+    @FXML private Label usernameLabel;
+
+
+    private void bindHeaderContext() {
+
+        // Company identity (customer)
+        companyNameLabel.setText(
+                CompanyContext.get().getLegalName()
+        );
+
+        // User identity
+        userRoleLabel.setText(
+                UserContext.get().getRole()
+        );
+
+        usernameLabel.setText(
+                UserContext.get().getUsername()
+        );
+    }
+
     private static final Set<String> NON_CACHED_VIEWS = Set.of(
             "InvoiceView.fxml",
             "RestoreDatabaseView.fxml"
@@ -106,6 +125,8 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
+
+        bindHeaderContext();
 
         refreshSystemStatus();
 
@@ -218,13 +239,9 @@ public class DashboardController {
     private void injectContext(Navigable controller) {
 
         controller.setDashboard(this);
-
-        if (controller instanceof RoleAware r) {
-            r.setRole(currentRole);
-        }
-
         controller.onNavigateTo();
     }
+
 
 
 
