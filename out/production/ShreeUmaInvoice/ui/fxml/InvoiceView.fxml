@@ -1,344 +1,816 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.*?>
-
-<ScrollPane hbarPolicy="NEVER"
-            fitToWidth="true"
-            prefHeight="600"
-            xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="ui.InvoiceController" fx:id="root" >
-
-    <MenuBar>
-        <Menu text="Invoice">
-            <MenuItem text="Reprint Invoice"
-                      onAction="#openReprintDialog"/>
-        </Menu>
-    </MenuBar>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.text.Font?>
 
 
-    <!-- PAGE CONTAINER -->
-    <VBox
-          alignment="TOP_CENTER" spacing="10"
-          style="-fx-background-color: #f5f5f5; -fx-padding: 20;">
+<VBox prefHeight="950.0" prefWidth="1300.0"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ui.InvoiceController"
+      style="-fx-background-color: #F8FAFC;">
 
-        <!-- ================= CENTERED INVOICE ================= -->
-        <StackPane alignment="TOP_CENTER">
+    <!-- ================= HEADER ================= -->
 
-            <VBox prefWidth="794"
-                  minWidth="794"
-                  maxWidth="794"
-                  spacing="12"
-                  style="-fx-background-color: white;
-                         -fx-padding: 20;
-                         -fx-border-color: black;">
+    <HBox minHeight="76"
+          alignment="CENTER_LEFT"
+          spacing="20"
+          style="-fx-background-color: #FFFFFF;
+                 -fx-padding: 8 36;
+                 -fx-border-color: #E5E7EB;
+                 -fx-border-width: 0 0 1 0;">
+        <VBox spacing="2">
 
+            <Label text="Create New Invoice"
+                   style="-fx-font-size: 22px;
+                          -fx-font-weight: 800;
+                          -fx-text-fill: #0F172A;"/>
 
-                <!-- ================= HEADER ================= -->
-                <VBox alignment="CENTER" spacing="4">
-                    <Label fx:id="companyNameLabel"
-                           style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
-                    <Label fx:id="companyDescriptionLabel"/>
-                    <Label fx:id="companyGstLabel"/>
-                    <Label fx:id="companyContactLabel"
-                           style="-fx-font-size: 11px;"/>
+            <Label fx:id="companyDescriptionLabel"
+                   style="-fx-font-size: 13px;
+                          -fx-text-fill: #64748B;"/>
+        </VBox>
 
-                    <Label text="TAX INVOICE"
-                           style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                    <Label text="(Computer Generated Invoice)"
-                           style="-fx-font-size: 10px;"/>
-                </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
 
-                <Separator/>
+        <HBox spacing="14"
+              alignment="CENTER"
+              style="-fx-background-color: #F1F5F9;
+                     -fx-padding: 10 18;
+                     -fx-background-radius: 40;">
 
-                <!-- ================= INVOICE META ================= -->
-                <GridPane hgap="8" vgap="6">
-                    <columnConstraints>
-                        <ColumnConstraints prefWidth="90"/>
-                        <ColumnConstraints prefWidth="277"/>
-                        <ColumnConstraints prefWidth="40"/>
-                        <ColumnConstraints prefWidth="160"/>
-                    </columnConstraints>
+            <VBox alignment="CENTER_RIGHT">
+                <Label fx:id="companyNameLabel"
+                       style="-fx-font-size: 14px;
+                              -fx-font-weight: 700;
+                              -fx-text-fill: #1E293B;"/>
+                <Label fx:id="companyGstLabel"
+                       style="-fx-font-size: 11px;
+                              -fx-font-weight: 700;
+                              -fx-text-fill: #2563EB;"/>
+                <Label fx:id="companyContactLabel"
+                       visible="false"
+                       managed="false"/>
 
-                    <Label text="Invoice No"/>
-                    <TextField fx:id="invoiceNoField" editable="false" />
+            </VBox>
+            <Circle radius="18"
+                    fill="#2563EB"/>
 
-                    <Label text="Date" GridPane.columnIndex="2"/>
-                    <DatePicker fx:id="invoiceDatePicker" GridPane.columnIndex="3"/>
-                </GridPane>
+        </HBox>
 
-
-                <Separator/>
-
-                <!-- ================= BUYER / CONSIGNEE ================= -->
-                <HBox spacing="15">
-
-                    <!-- BUYER -->
-                    <VBox spacing="6">
-                        <Label text="DETAILS OF BUYER / BILL TO"
-                               style="-fx-font-weight: bold;"/>
-
-                        <HBox spacing="5">
-                            <ComboBox fx:id="customerBox"
-                                      promptText="Select Customer"
-                                      HBox.hgrow="ALWAYS"/>
-                            <Button text="+" onAction="#addNewCustomer"/>
-                            <Button text="Edit" onAction="#editCustomer"/>
-
-                        </HBox>
-
-                        <TextArea fx:id="buyerAddressArea" prefRowCount="3"/>
-                        <TextField fx:id="buyerGstField" promptText="GSTIN"/>
-
-                        <HBox spacing="6">
-                            <TextField fx:id="buyerStateField" promptText="Place of Supply"/>
-                            <TextField fx:id="buyerStateCodeField"
-                                       promptText="Code"
-                                       prefWidth="70"/>
-                        </HBox>
-
-                        <!--                    <GridPane hgap="6" vgap="6">-->
-                        <!--                        <columnConstraints>-->
-                        <!--                            <ColumnConstraints prefWidth="110"/>-->
-                        <!--                            <ColumnConstraints prefWidth="120"/>-->
-                        <!--                        </columnConstraints>-->
-
-                        <!--                        <Label text="Place of Supply"/>-->
-                        <!--                        <TextField fx:id="buyerStateField"/>-->
-
-                        <!--                        <Label text="Place Code" GridPane.rowIndex="1"/>-->
-                        <!--                        <TextField fx:id="buyerStateCodeField"-->
-                        <!--                                   GridPane.rowIndex="1"-->
-                        <!--                                   prefWidth="70"/>-->
-                        <!--                    </GridPane>-->
-                    </VBox>
-
-                    <!-- CONSIGNEE -->
-                    <VBox spacing="6">
-                        <HBox spacing="6" alignment="CENTER_LEFT">
-                            <Label text="DETAILS OF CONSIGNEE / SHIP TO"
-                                   style="-fx-font-weight: bold;"/>
-                            <CheckBox fx:id="sameAsBuyerCheck" text="Same as Buyer" onAction="#onSameAsBuyerToggle"/>
-                        </HBox>
-
-                        <TextField fx:id="consigneeNameField" promptText="Name"/>
-                        <TextArea fx:id="consigneeAddressArea" prefRowCount="3"/>
-                        <TextField fx:id="consigneeGstField" promptText="GSTIN"/>
-
-                        <HBox spacing="6">
-                            <TextField fx:id="consigneeStateField" promptText="State"/>
-                            <TextField fx:id="consigneeStateCodeField"
-                                       promptText="Code"
-                                       prefWidth="70"/>
-                        </HBox>
-                    </VBox>
-                </HBox>
-
-                <Separator/>
-
-                <!-- ================= PO / DC ================= -->
-                <GridPane hgap="82" vgap="6">
-                    <columnConstraints>
-                        <ColumnConstraints prefWidth="40"/>
-                        <ColumnConstraints prefWidth="180"/>
-                        <ColumnConstraints prefWidth="50"/>
-                        <ColumnConstraints prefWidth="180"/>
-                    </columnConstraints>
-
-                    <Label text="P.O No" />
-                    <TextField fx:id="poNoField" GridPane.columnIndex="1"/>
-
-                    <Label text="P.O Date" GridPane.columnIndex="2"/>
-                    <DatePicker fx:id="poDatePicker" GridPane.columnIndex="3"/>
-
-                    <Label text="D.C No" GridPane.rowIndex="1"/>
-                    <TextField fx:id="dcNoField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-
-                    <Label text="D.C Date" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-                    <DatePicker fx:id="dcDatePicker" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-                </GridPane>
+    </HBox>
 
 
-                <GridPane hgap="15" vgap="6">
-                    <columnConstraints>
-                        <ColumnConstraints prefWidth="107"/>
-                        <ColumnConstraints prefWidth="180"/>
-                        <ColumnConstraints prefWidth="150"/>
-                        <ColumnConstraints prefWidth="210"/>
-                    </columnConstraints>
 
-                    <Label text="Dispatch Through"/>
-                    <TextField fx:id="dispatchThroughField" GridPane.columnIndex="1" />
+    <!-- ================= BODY ================= -->
 
-                    <Label text="E-Way Bill No" GridPane.columnIndex="2">
-                        <GridPane.margin>
-                            <Insets left="67.0" /> </GridPane.margin>
-                    </Label>
-                    <TextField fx:id="ewayBillField" GridPane.columnIndex="3">
-                        <GridPane.margin>
-                            <Insets left="35.0" /> </GridPane.margin>
-                    </TextField>
-                </GridPane>
+    <StackPane VBox.vgrow="ALWAYS">
+        <ScrollPane fx:id="root"
+                    fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    VBox.vgrow="ALWAYS"
+                    style="
+        -fx-background-color: transparent;
+        -fx-background-insets: 0;
+        -fx-padding: 0;
+    ">
 
 
-                <Separator/>
+            <content>
 
-                <!-- ================= ITEM TABLE ================= -->
-                <TableView fx:id="table" prefHeight="260" style="-fx-font-size: 11px;">
-                    <columns>
-                        <TableColumn text="SL" fx:id="slNo" prefWidth="35"/>
-                        <TableColumn text="Item" fx:id="itemCol" prefWidth="230"/>
-                        <TableColumn text="HSN" fx:id="hsnCol" prefWidth="90"/>
-                        <TableColumn text="Qty" fx:id="qtyCol" prefWidth="70"/>
-                        <TableColumn text="Unit" fx:id="unitCol" prefWidth="35"/>
-                        <TableColumn text="Rate" fx:id="rateCol" prefWidth="100"/>
-                        <TableColumn text="GST %" fx:id="gstCol" prefWidth="55"/>
-                        <TableColumn text="Amount" fx:id="amountCol" prefWidth="110"/>
-                        <TableColumn text="" fx:id="deleteCol" prefWidth="35"/>
-
-                    </columns>
-                </TableView>
-
-                <HBox spacing="10">
-                    <Button text="+ Row" onAction="#addItemRow"/>
-                    <Button text="+ Item" onAction="#addNewItem"/>
-
-                </HBox>
-
-                <Separator/>
-
-                <!-- ================= TOTALS ================= -->
-                <HBox spacing="15">
-                    <VBox spacing="6" HBox.hgrow="ALWAYS">
-                        <Label text="Amount in Words:"/>
-                        <Label fx:id="amountWordsLabel" wrapText="true"
-                               style="-fx-font-style: italic;"/>
-                        <Label text="Punjab National Bank"/>
-                        <Label text="A/C: 4481002100003591 | IFSC: PUNB0448100"/>
-                    </VBox>
-                    <Separator orientation="VERTICAL"/>
+                <VBox fx:id="pageRoot"
+                      spacing="28"
+                      maxWidth="1240"
+                      style="
+         -fx-padding:28 32 140 32;
+-fx-font-size:14px;
+-fx-background-color: transparent;
+      ">
 
 
-                    <VBox alignment="TOP_RIGHT">
-                        <GridPane hgap="10" vgap="6">
-                            <columnConstraints>
-                                <ColumnConstraints prefWidth="140"/>
-                                <ColumnConstraints prefWidth="120"/>
-                            </columnConstraints>
 
-                            <Label text="Taxable Subtotal"/>
-                            <Label fx:id="taxableAmountLabel" GridPane.columnIndex="1"/>
 
-                            <Label fx:id="cgstTextLabel" text="CGST @" GridPane.rowIndex="1"/>
-                            <Label fx:id="cgstLabel" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
-                            <Label fx:id="sgstTextLabel" text="SGST @" GridPane.rowIndex="2"/>
-                            <Label fx:id="sgstLabel" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    <!-- ===== BILLING & SHIPPING ===== -->
 
-                            <Label fx:id="igstTextLabel" text="IGST @" GridPane.rowIndex="3"/>
-                            <Label fx:id="igstLabel" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                    <HBox spacing="24">
 
-                            <Label text="Round Off" GridPane.rowIndex="4"/>
-                            <Label fx:id="roundOffLabel" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                        <!-- Billing -->
 
-                            <Label text="Grand Total"
-                                   style="-fx-font-weight: bold;"
-                                   GridPane.rowIndex="5"/>
-                            <Label fx:id="totalLabel"
-                                   style="-fx-font-weight: bold;"
-                                   GridPane.columnIndex="1"
-                                   GridPane.rowIndex="5"/>
-                        </GridPane>
-                    </VBox>
+                        <VBox spacing="14"
 
-                    <CheckBox fx:id="roundOffCheck"
-                              text="Apply Round Off"
-                              selected="true"/>
+                              HBox.hgrow="ALWAYS"
+                              style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
 
-                    <HBox spacing="6" alignment="CENTER_LEFT">
-                        <Label text="Round Off Value"/>
-                        <TextField fx:id="roundOffField"
-                                   prefWidth="80"
-                                   promptText="Auto"
-                                   disable="true"
-                                   style="-fx-border-color: #3498db; -fx-border-width: 2px; -fx-border-radius: 3px;"/>
+                            <Label text="BILLING DETAILS"
+                                   style="-fx-font-size: 12px;
+                                      -fx-font-weight: 800;
+                                      -fx-text-fill: #475569;"/>
+
+                            <HBox spacing="10">
+                                <ComboBox fx:id="customerBox"
+                                          promptText="Search customer by name or GSTIN"
+
+                                          prefHeight="40"
+
+                                          HBox.hgrow="ALWAYS"
+
+                                          style="-fx-background-color: #F8FAFC;
+
+                                             -fx-background-radius: 8;"/>
+
+                                <Button text="+"
+
+                                        onAction="#addNewCustomer"
+
+                                        prefHeight="40"
+
+                                        prefWidth="40"
+
+                                        style="-fx-background-color: #2563EB;
+
+                                           -fx-text-fill: white;
+
+                                           -fx-font-size: 18px;
+
+                                           -fx-background-radius: 8;"/>
+
+                                <Button text="Edit"
+
+                                        onAction="#editCustomer"
+
+                                        prefHeight="40"
+                                        style="-fx-background-color: white;
+
+                                           -fx-border-color: #CBD5E1;
+
+                                           -fx-border-radius: 8;"/>
+
+                            </HBox>
+
+
+
+                            <!-- MATCHED HEIGHT -->
+
+                            <TextArea fx:id="buyerAddressArea"
+
+                                      prefHeight="110"
+
+                                      wrapText="true"
+
+                                      promptText="Billing address"
+
+                                      style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;">
+
+                                <font>
+
+                                    <Font size="15"/>
+
+                                </font>
+
+                            </TextArea>
+
+
+
+                            <HBox spacing="10">
+
+                                <TextField fx:id="buyerGstField"
+
+                                           promptText="GSTIN"
+
+                                           prefHeight="38"
+
+                                           HBox.hgrow="ALWAYS"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                                <TextField fx:id="buyerStateField"
+
+                                           promptText="State"
+
+                                           prefHeight="38"
+
+                                           prefWidth="160"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                                <TextField fx:id="buyerStateCodeField"
+
+                                           promptText="Code"
+
+                                           prefHeight="38"
+
+                                           prefWidth="70"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                            </HBox>
+
+                        </VBox>
+
+
+
+                        <!-- Shipping -->
+
+                        <VBox spacing="14"
+
+                              HBox.hgrow="ALWAYS"
+
+                              style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
+
+                            <HBox>
+
+                                <Label text="SHIPPING DETAILS"
+
+                                       style="-fx-font-size: 12px;
+
+                                          -fx-font-weight: 800;
+
+                                          -fx-text-fill: #475569;"/>
+
+                                <Region HBox.hgrow="ALWAYS"/>
+
+                                <CheckBox fx:id="sameAsBuyerCheck"
+
+                                          onAction="#onSameAsBuyerToggle"
+
+                                          text="Same as billing"
+
+                                          style="-fx-text-fill: #64748B;
+
+                                             -fx-font-size: 12px;"/>
+
+                            </HBox>
+
+
+
+                            <TextField fx:id="consigneeNameField"
+
+                                       promptText="Consignee name"
+
+                                       prefHeight="40"
+
+                                       style="-fx-background-color: #F8FAFC;"/>
+
+
+
+                            <!-- MATCHED HEIGHT -->
+
+                            <TextArea fx:id="consigneeAddressArea"
+
+                                      prefHeight="110"
+
+                                      wrapText="true"
+
+                                      promptText="Shipping address"
+
+                                      style="-fx-control-inner-background: #F8FAFC;">
+
+                                <font>
+
+                                    <Font size="15"/>
+
+                                </font>
+
+                            </TextArea>
+
+
+
+                            <HBox spacing="10">
+
+                                <TextField fx:id="consigneeGstField"
+
+                                           promptText="GSTIN"
+
+                                           prefHeight="38"
+
+                                           HBox.hgrow="ALWAYS"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                                <TextField fx:id="consigneeStateField"
+
+                                           promptText="State"
+
+                                           prefHeight="38"
+
+                                           prefWidth="160"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                                <TextField fx:id="consigneeStateCodeField"
+
+                                           promptText="Code"
+
+                                           prefHeight="38"
+
+                                           prefWidth="70"
+
+                                           style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                            </HBox>
+
+                        </VBox>
+
                     </HBox>
 
 
-                </HBox>
 
-                <Separator/>
+                    <!-- ===== META ROW ===== -->
 
-                <!-- ================= DECLARATION ================= -->
+                    <HBox spacing="20"
 
+                          style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
 
-                <Separator/>
+                        <VBox spacing="6" HBox.hgrow="ALWAYS">
 
-                <!-- ================= SIGNATURE ================= -->
-                <HBox spacing="20">
-                    <VBox spacing="15">
-                        <VBox spacing="4">
-                            <Label text="Certified that the particulars given above are true and correct"/>
-                            <Label text="Goods once supplied will not be taken back"/>
-                            <Label text="Subject to Visakhapatnam jurisdiction"/>
+                            <Label text="INVOICE #"
+
+                                   style="-fx-font-size: 12px; -fx-font-weight: 700;"/>
+
+                            <TextField fx:id="invoiceNoField"
+
+                                       prefHeight="40"
+
+                                       style="-fx-background-color: #F8FAFC;
+
+                                          -fx-font-size: 15px;
+
+                                          -fx-font-weight: 700;"/>
+
                         </VBox>
-                        <VBox alignment="BASELINE_RIGHT"><Label text="Receiver's Signature" style="-fx-font-weight: bold;"/></VBox>
+
+                        <VBox spacing="6" HBox.hgrow="ALWAYS">
+
+                            <Label text="INVOICE DATE"
+
+                                   style="-fx-font-size: 12px; -fx-font-weight: 700;"/>
+
+                            <DatePicker fx:id="invoiceDatePicker"
+
+                                        prefHeight="40"/>
+
+                        </VBox>
+
+                        <VBox spacing="6" HBox.hgrow="ALWAYS">
+
+                            <Label text="P.O. NO"
+
+                                   style="-fx-font-size: 12px; -fx-font-weight: 700;"/>
+
+                            <TextField fx:id="poNoField"
+
+                                       prefHeight="40"
+
+                                       style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                        </VBox>
+
+                        <VBox spacing="6" HBox.hgrow="ALWAYS">
+
+                            <Label text="P.O. DATE"
+
+                                   style="-fx-font-size: 12px; -fx-font-weight: 700;"/>
+
+                            <DatePicker fx:id="poDatePicker"
+
+                                        prefHeight="40"/>
+
+                        </VBox>
+
+                    </HBox>
+
+
+
+                    <!-- ===== DELIVERY DETAILS (SEPARATE) ===== -->
+
+                    <HBox spacing="20"
+                          style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
+                        <TextField fx:id="dcNoField"
+                                   promptText="Delivery Challan No"
+                                   prefHeight="40"
+                                   HBox.hgrow="ALWAYS"
+                                   style="-fx-control-inner-background: #F8FAFC;
+                                         -fx-background-radius: 8;"/>
+                        <DatePicker fx:id="dcDatePicker"
+                                    prefHeight="40"
+                                    HBox.hgrow="ALWAYS"
+                                    promptText="DC Date"/>
+                        <TextField fx:id="dispatchThroughField"
+                                   promptText="Dispatch Mode"
+                                   prefHeight="40"
+
+                                   HBox.hgrow="ALWAYS"
+
+                                   style="-fx-control-inner-background: #F8FAFC;
+
+                                         -fx-background-radius: 8;"/>
+
+                        <TextField fx:id="ewayBillField"
+                                   promptText="E-Way Bill No"
+                                   prefHeight="40"
+                                   HBox.hgrow="ALWAYS"
+                                   style="-fx-control-inner-background: #F8FAFC;
+                                         -fx-background-radius: 8;"/>
+                    </HBox>
+                    <!-- ===== ITEMS TABLE ===== -->
+
+                    <VBox spacing="12"
+                          style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
+                        <!-- MODERN HEADER BAR -->
+
+                        <HBox alignment="CENTER_LEFT"
+                              spacing="12"
+                              style="
+        -fx-background-color:#F8FAFC;
+        -fx-padding:10 14;
+        -fx-background-radius:8;
+        -fx-border-color:#E5E7EB;
+        -fx-border-radius:8;
+      ">
+                            <Label text="ITEM TABLE"
+                                   style="-fx-font-size:14px;
+                  -fx-font-weight:800;
+                  -fx-text-fill:#0F172A;"/>
+                        </HBox>
+
+
+                        <TableView fx:id="table"
+                                   VBox.vgrow="ALWAYS"
+                                   style="
+             -fx-font-size:13px;
+             -fx-background-color:white;
+             -fx-selection-bar:#E0F2FE;
+             -fx-table-cell-border-color:#E5E7EB;
+             -fx-control-inner-background:white;
+             -fx-padding:0;
+           ">
+                            <columns>
+                                <TableColumn fx:id="slNo" text="#" minWidth="48"
+                                             style="-fx-alignment: CENTER; -fx-font-weight: 700;"/>
+                                <TableColumn fx:id="itemCol" text="ITEM"
+                                             minWidth="360"
+                                             style="-fx-font-size: 15px;"/>
+                                <TableColumn fx:id="hsnCol" text="HSN"
+                                             minWidth="90"
+                                             style="-fx-alignment: CENTER;"/>
+                                <TableColumn fx:id="qtyCol" text="QTY"
+                                             minWidth="80"
+                                             style="-fx-alignment: CENTER;"/>
+                                <TableColumn fx:id="unitCol" text="UNIT"
+                                             minWidth="80"
+                                             style="-fx-alignment: CENTER;"/>
+                                <TableColumn fx:id="rateCol" text="RATE"
+                                             minWidth="120"
+                                             style="-fx-alignment: CENTER_RIGHT;"/>
+                                <TableColumn fx:id="gstCol" text="GST %"
+                                             minWidth="80"
+                                             style="-fx-alignment: CENTER;"/>
+                                <TableColumn fx:id="amountCol"
+                                             text="AMOUNT"
+                                             minWidth="150"
+                                             style="
+               -fx-alignment:CENTER_RIGHT;
+               -fx-font-weight:900;
+               -fx-text-fill:#0F172A;
+
+             "/>
+                                <TableColumn fx:id="deleteCol" minWidth="48"/>
+                            </columns>
+                        </TableView>
+
+                        <HBox alignment="CENTER_LEFT"
+                              spacing="16"
+                              style="-fx-padding: 6 0 0 2;">
+
+                            <!-- Add New Row -->
+                            <Button onAction="#forceAddEmptyRow"
+                                    style="
+              -fx-background-color:#EFF6FF;
+-fx-border-color:#BFDBFE;
+-fx-background-radius:999;
+-fx-border-radius:999;
+-fx-padding:6 14;
+-fx-background-insets:0;
+-fx-border-insets:0;
+-fx-focus-color: transparent;
+-fx-faint-focus-color: transparent;
+
+            ">
+                                <graphic>
+                                    <HBox spacing="8" alignment="CENTER">
+                                        <Label text="+"
+                                               style="
+                         -fx-background-color:#2563EB;
+                         -fx-text-fill:white;
+                         -fx-font-weight:900;
+                         -fx-padding: 2 6;
+-fx-min-width: 18;
+-fx-alignment: CENTER;
+-fx-background-radius: 999;
+
+                       "/>
+                                        <Label text="Add New Row"
+                                               style="
+                         -fx-text-fill:#2563EB;
+                         -fx-font-weight:800;
+                         -fx-font-size:13px;
+                       "/>
+                                    </HBox>
+                                </graphic>
+                            </Button>
+
+                            <!-- Add Item -->
+                            <Button onAction="#addNewItem"
+                                    style="
+              -fx-background-color:#EFF6FF;
+-fx-border-color:#BFDBFE;
+-fx-background-radius:999;
+-fx-border-radius:999;
+-fx-padding:6 14;
+-fx-background-insets:0;
+-fx-border-insets:0;
+-fx-focus-color: transparent;
+-fx-faint-focus-color: transparent;
+
+            ">
+                                <graphic>
+                                    <HBox spacing="8" alignment="CENTER">
+                                        <Label text="+"
+                                               style="
+                         -fx-background-color:#2563EB;
+                         -fx-text-fill:white;
+                         -fx-font-weight:900;
+                         -fx-padding:2 7;
+                         -fx-background-radius:10;
+                       "/>
+                                        <Label text="Add Item"
+                                               style="
+                         -fx-text-fill:#2563EB;
+                         -fx-font-weight:800;
+                         -fx-font-size:13px;
+                       "/>
+                                    </HBox>
+                                </graphic>
+                            </Button>
+                        </HBox>
                     </VBox>
-                    <Separator orientation="VERTICAL"/>
-                    <!--                <Region HBox.hgrow="ALWAYS"/>-->
-                    <Region HBox.hgrow="ALWAYS" />
-                    <VBox alignment="TOP_RIGHT" spacing="55">
-                        <Label text="For SHREE UMA ASSOCIATES"
-                               style="-fx-font-weight: bold;" />
-                        <Label text="Authorised Signatory" />
-                    </VBox>
-                </HBox>
-
-            </VBox>
 
 
-        </StackPane>
 
-        <!-- ================= SAVE ================= -->
-        <VBox alignment="CENTER" spacing="5" style="-fx-padding: 20;">
-            <Button fx:id="previewButton"
-                    text="PREVIEW"
-                    onAction="#previewInvoice"/>
+                    <!-- ===== NOTES & TOTALS ===== -->
+                    <HBox spacing="24">
+                        <!-- FUTURE EXTENSIONS PLACEHOLDER -->
+                        <VBox spacing="10"
+                              HBox.hgrow="ALWAYS"
+                              style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+    ">
+
+                            <Label text="NOTES"
+                                   style="-fx-font-size:13px;
+                  -fx-font-weight:800;
+                  -fx-text-fill:#475569;"/>
+                            <TextArea promptText="Additional notes / payment terms"
+                                      prefHeight="120"
+                                      wrapText="true"
+                                      style="-fx-control-inner-background:#F8FAFC;
+                     -fx-background-radius:8;"/>
+                        </VBox>
+                        <!-- TOTAL SUMMARY -->
+
+                        <VBox fx:id="invoiceSummaryBox"
+                              prefWidth="420"
+                              spacing="16"
+                              style="
+        -fx-background-color: #FFFFFF;
+        -fx-background-radius: 12;
+        -fx-border-color: #E5E7EB;
+        -fx-border-radius: 12;
+        -fx-background-insets: 0;
+        -fx-border-insets: 0;
+        -fx-padding: 22;
+         -fx-effect:dropshadow(gaussian, rgba(0,0,0,0.08), 16, 0, 0, 4);">
+
+                            <Label text="INVOICE SUMMARY"
+                                   style="-fx-font-size:15px;
+                  -fx-font-weight:900;
+                  -fx-text-fill:#0F172A;"/>
+                            <!-- Sub totals -->
+
+                            <GridPane hgap="12" vgap="8">
+                                <columnConstraints>
+                                    <ColumnConstraints percentWidth="60"/>
+                                    <ColumnConstraints percentWidth="40"/>
+                                </columnConstraints>
+                                <Label text="Taxable Amount"
+                                       GridPane.rowIndex="0"
+                                       GridPane.columnIndex="0"
+                                       style="-fx-text-fill:#64748B;"/>
+                                <Label fx:id="taxableAmountLabel"
+                                       GridPane.rowIndex="0"
+                                       GridPane.columnIndex="1"
+                                       style="-fx-font-weight:700;"/>
+
+                                <Label text="CGST"
+                                       GridPane.rowIndex="1"
+                                       GridPane.columnIndex="0"
+                                       style="-fx-text-fill:#64748B;"/>
+                                <Label fx:id="cgstLabel"
+                                       GridPane.rowIndex="1"
+                                       GridPane.columnIndex="1"
+                                       style="-fx-font-weight:700;"/>
+                                <Label text="SGST"
+                                       GridPane.rowIndex="2"
+                                       GridPane.columnIndex="0"
+                                       style="-fx-text-fill:#64748B;"/>
+                                <Label fx:id="sgstLabel"
+                                       GridPane.rowIndex="2"
+                                       GridPane.columnIndex="1"
+                                       style="-fx-font-weight:700;"/>
+                                <Label text="IGST"
+                                       GridPane.rowIndex="3"
+                                       GridPane.columnIndex="0"
+                                       style="-fx-text-fill:#64748B;"/>
+
+                                <Label fx:id="igstLabel"
+                                       GridPane.rowIndex="3"
+                                       GridPane.columnIndex="1"
+                                       style="-fx-font-weight:700;"/>
+
+                                <!-- ROUND OFF ROW -->
+                                <Label fx:id="roundOffTextLabel"
+                                       text="Round Off"
+                                       GridPane.rowIndex="4"
+                                       GridPane.columnIndex="0"
+                                       visible="false"
+                                       managed="false"
+                                       style="-fx-text-fill:#64748B;"/>
+
+                                <Label fx:id="roundOffValueLabel"
+                                       GridPane.rowIndex="4"
+                                       GridPane.columnIndex="1"
+                                       visible="false"
+                                       managed="false"
+                                       style="-fx-font-weight:700;"/>
+
+                            </GridPane>
+                            <Separator/>
+                            <!-- Round off -->
+
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <CheckBox fx:id="roundOffCheck" text="Round off"/>
+                                <TextField fx:id="roundOffField"
+                                           prefWidth="120"
+                                           promptText="Adjustment"/>
+                            </HBox>
+                            <Label fx:id="roundOffLabel"
+                                   visible="false"
+                                   managed="false"/>
+
+                            <Separator/>
+                            <!-- Grand total -->
+
+                            <HBox fx:id="grandTotalRow" alignment="CENTER_RIGHT" spacing="14">
+                                <Label text="TOTAL"
+                                       style="
+         -fx-font-size:16px;
+         -fx-font-weight:800;
+         -fx-text-fill:#0F172A;
+       "/>
+
+                                <HBox fx:id="summaryTotalSlot"
+
+                                      alignment="CENTER_RIGHT"
+
+                                      spacing="14">
+
+                                    <!-- totalLabel will be injected here -->
+
+                                </HBox>
+                            </HBox>
+                        </VBox>
+                    </HBox>
+                </VBox>
+            </content>
+        </ScrollPane>
 
 
-            <HBox alignment="CENTER" spacing="15" style="-fx-padding: 20;">
+        <!-- ================= STICKY GRAND TOTAL ================= -->
+
+        <HBox fx:id="stickyTotalBar"
+              alignment="CENTER_RIGHT"
+              spacing="14"
+              visible="false"
+              managed="false"
+              StackPane.alignment="BOTTOM_CENTER"
+              maxHeight="60"
+              style="
+        -fx-background-color: rgba(255,255,255,0.98);
+        -fx-padding: 12 56 12 32;
+        -fx-border-color: #E5E7EB;
+        -fx-border-width: 1 0 0 0;
+        -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, -2);
+      ">
+            <Label text="TOTAL" style="-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #64748B;"/>
+            <HBox fx:id="stickyTotalSlot" alignment="CENTER_RIGHT" />
+        </HBox>
+    </StackPane>
 
 
-                <Button fx:id="saveButton"
-                        text="SAVE INVOICE"
-                        onAction="#saveInvoice"
-                        style="-fx-base: #27ae60;
-                   -fx-text-fill: white;
-                   -fx-font-weight: bold;
-                   -fx-padding: 10 30 10 30;"/>
 
-                <Button fx:id="savePrintButton"
-                        text="SAVE &amp; PRINT"
-                        onAction="#saveAndPrint"
-                        style="-fx-base: #2980b9;
-                   -fx-text-fill: white;
-                   -fx-font-weight: bold;
-                   -fx-padding: 10 30 10 30;"/>
-                <Button text="PRINT"
-                        onAction="#printCurrentInvoice"
-                        prefWidth="160"
-                        style="-fx-base: #2980b9;
-                   -fx-text-fill: white;
-                   -fx-font-weight: bold;
-                   -fx-padding: 10 30 10 30;"
-                        disable="true"
-                        fx:id="printBtn"/>
+    <!-- ================= FOOTER ================= -->
 
-            </HBox>
-        </VBox>
-
-
-    </VBox>
-</ScrollPane>
+    <HBox minHeight="84"
+          alignment="CENTER_RIGHT"
+          spacing="18"
+          style="-fx-background-color: #FFFFFF;
+                 -fx-padding: 0 40;
+                 -fx-border-color: #E5E7EB;
+                 -fx-border-width: 1 0 0 0;">
+        <Button fx:id="previewButton" text="PREVIEW"
+                onAction="#previewInvoice"
+                prefHeight="44" prefWidth="140"/>
+        <Button fx:id="saveButton" text="SAVE INVOICE"
+                onAction="#saveInvoice"
+                prefHeight="44" prefWidth="150"/>
+        <Button fx:id="savePrintButton" text="SAVE &amp; SEND INVOICE"
+                onAction="#saveAndPrint"
+                prefHeight="48" prefWidth="260"
+                style="-fx-background-color: #2563EB;
+                       -fx-text-fill: white;
+                       -fx-font-size: 15px;
+                       -fx-font-weight: 900;
+                       -fx-background-radius: 12;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="printBtn" text="PRINT"
+                disable="true"
+                onAction="#printCurrentInvoice"
+                prefHeight="44" prefWidth="120"/>
+    </HBox>
+</VBox>

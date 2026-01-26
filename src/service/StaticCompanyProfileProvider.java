@@ -10,7 +10,7 @@ public final class StaticCompanyProfileProvider
         return new CompanyProfile(
                 "SHREE UMA ASSOCIATES",
                 "",
-                "Govt. Order Supply &amp; Contractors",
+                "Govt. Order Supply & Contractors",
                 "37AFPTK3972K1ZN",
                 "Door No. 58-3-10, Ramanaidu Colony",
                 "ashokekumar122@example.com",

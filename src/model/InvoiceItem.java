@@ -6,7 +6,7 @@ public class InvoiceItem {
 
     /* ================= CORE FIELDS ================= */
 
-    private final StringProperty itemName = new SimpleStringProperty("");
+    private final StringProperty itemName = new SimpleStringProperty("Double click to Add");
     private final StringProperty hsn = new SimpleStringProperty("");
     private final DoubleProperty qty = new SimpleDoubleProperty(1);
     private final StringProperty unit = new SimpleStringProperty("");

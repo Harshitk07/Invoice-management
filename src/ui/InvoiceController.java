@@ -4,12 +4,18 @@ import context.CompanyContext;
 import dao.CustomerDAO;
 import dao.InvoiceDAO;
 import dao.ItemDAO;
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.BoundingBox;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.print.*;
@@ -23,6 +29,7 @@ import javafx.scene.layout.*;
 import javafx.scene.transform.Scale;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javafx.util.converter.DoubleStringConverter;
 import model.*;
 import print.PrintInvoiceBuilder;
@@ -112,20 +119,30 @@ public class InvoiceController implements Refreshable,Navigable {
     @FXML
     private TableColumn<InvoiceItem, Void> deleteCol;
 
+    private static final int MAX_VISIBLE_ROWS = 6;
+
+
 
     /* ================= TOTALS ================= */
-
+    @FXML private VBox invoiceSummaryBox;
     @FXML private Label taxableAmountLabel;
     @FXML private Label cgstLabel;
     @FXML private Label sgstLabel;
     @FXML private Label igstLabel;
-    @FXML private Label cgstTextLabel;
-    @FXML private Label sgstTextLabel;
-    @FXML private Label igstTextLabel;
     @FXML private Label roundOffLabel;
-    @FXML private Label totalLabel;
     @FXML private CheckBox roundOffCheck;
     @FXML private TextField roundOffField;
+    @FXML private HBox stickyTotalBar;
+    @FXML private Label roundOffTextLabel;
+    @FXML private Label roundOffValueLabel;
+
+    @FXML private HBox summaryTotalSlot;
+    @FXML private HBox stickyTotalSlot;
+
+    private Label sharedTotalLabel;
+    private boolean stickyVisible = false;
+    @FXML private HBox grandTotalRow;
+
 
 
     /* ================= META ================= */
@@ -162,11 +179,61 @@ public class InvoiceController implements Refreshable,Navigable {
     private double grandTotal = 0;
 
 
+    @FXML private VBox pageRoot;
+
+    private double baseFontSize = 14;
+    private double fontStep = 1;
+    private double minFont = 12;
+    private double maxFont = 20;
+
+    @FXML
+    private void increaseFont() {
+        setFont(baseFontSize + fontStep);
+    }
+
+    @FXML
+    private void decreaseFont() {
+        setFont(baseFontSize - fontStep);
+    }
+
+    private void setFont(double size) {
+        size = Math.max(minFont, Math.min(maxFont, size));
+        baseFontSize = size;
+        pageRoot.setStyle(
+                "-fx-font-size: " + baseFontSize + "px;"
+        );
+    }
+
+
+
     /* ================= INIT ================= */
 
     @FXML
     public void initialize() {
 
+        // In initialize, listen to both scroll AND layout changes
+        root.vvalueProperty().addListener((obs, o, n) -> updateStickyBySummaryVisibility());
+
+// CRITICAL: Listen to height changes of the content (pageRoot)
+// This triggers when rows are added/removed
+        pageRoot.heightProperty().addListener((obs, o, n) -> {
+            // Wait for one layout pulse so bounds are updated
+            Platform.runLater(this::updateStickyBySummaryVisibility);
+        });
+
+        sharedTotalLabel = new Label("0.00");
+        sharedTotalLabel.setStyle("""
+    -fx-font-size:22px;
+    -fx-font-weight:800;
+    -fx-text-fill:#2563EB;
+""");
+
+        stickyTotalBar.setMouseTransparent(true);
+        sharedTotalLabel.setMinWidth(150);
+        sharedTotalLabel.setAlignment(Pos.CENTER_RIGHT);
+
+// Start INSIDE summary
+        summaryTotalSlot.getChildren().add(sharedTotalLabel);
         invoiceDatePicker.setValue(LocalDate.now());
         invoiceNoField.setText("AUTO");
         invoiceNoField.setEditable(false);
@@ -175,9 +242,17 @@ public class InvoiceController implements Refreshable,Navigable {
         roundOffCheck.selectedProperty().addListener((obs, o, isOn) -> {
             roundOffField.setDisable(!isOn);
             recalc();
+            updateStickyBySummaryVisibility();
+
         });
 
         roundOffField.textProperty().addListener((obs, o, n) -> recalc());
+        roundOffField.setTextFormatter(new TextFormatter<>(change -> {
+            if (change.getControlNewText().matches("-?([0-9]*\\.?[0-9]*)?")) {
+                return change;
+            }
+            return null;
+        }));
 
 
         customers.setAll(CustomerDAO.findActive());
@@ -220,6 +295,7 @@ public class InvoiceController implements Refreshable,Navigable {
             }
 
             recalc();
+            updateStickyBySummaryVisibility();
         });
 
         invoiceDatePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
@@ -236,8 +312,20 @@ public class InvoiceController implements Refreshable,Navigable {
 
         customerBox.setEditable(false);
         setupTable();
-        addItemRow();
+        Platform.runLater(() -> {
+            addItemRowIfNeeded();
+        });
+
         loadDraftCompanyHeader();
+        addHoverEffect(savePrintButton);
+        addHoverEffect(saveButton);
+        addHoverEffect(previewButton);
+        Platform.runLater(this::updateStickyBySummaryVisibility);
+        stickyTotalBar.setVisible(false);
+        stickyTotalBar.setOpacity(1);
+        stickyTotalBar.setTranslateY(0);
+
+
 
     }
 
@@ -258,30 +346,68 @@ public class InvoiceController implements Refreshable,Navigable {
     /* ================= TABLE ================= */
 
     private void setupTable() {
-
         // ---------- MASTER DATA ----------
         masterItems = ItemDAO.findActiveItems();
         itemNames = FXCollections.observableArrayList(
-                masterItems.stream()
-                        .map(Item::getName)
-                        .toList()
+                masterItems.stream().map(Item::getName).toList()
         );
-
 
         table.setItems(rows);
         table.setEditable(true);
+        table.setFocusTraversable(false); // 🔑 Fixes scroll jitter
+        table.setPlaceholder(new Label("No items added to this invoice."));
+
+        // ---------- ZOHO-STYLE ROW HEIGHT & SMOOTH SCROLL ----------
+        // Zoho uses slightly taller rows for better readability
+        double rowHeight = 50.0;
+        table.setFixedCellSize(rowHeight);
+
+        // Precise height binding to prevent the TableView from showing its own scrollbars
+        table.prefHeightProperty().bind(
+                Bindings.createDoubleBinding(() -> {
+                    double headerHeight = 40.0; // Standard header height
+                    double totalRowsHeight = Math.max(1, rows.size()) * rowHeight;
+                    return totalRowsHeight + headerHeight + 5; // +5 for border/fudge factor
+                }, rows)
+        );
 
         // ---------- COLUMN RESIZE POLICY ----------
-        // Absolutely mandatory for print-style tables
-        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
-        // ---------- FIX TABLE WIDTH BEHAVIOR ----------
-        table.setPrefWidth(Control.USE_COMPUTED_SIZE);
-        table.setMinWidth(Control.USE_PREF_SIZE);
-        table.setMaxWidth(Control.USE_PREF_SIZE);
+        // ---------- MODERN HEADER STYLING (Zoho Aesthetic) ----------
+        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            Node header = table.lookup(".column-header-background");
+            if (header != null) {
+                header.setStyle("""
+                -fx-background-color: #F9FAFB; 
+                -fx-border-color: #E5E7EB; 
+                -fx-border-width: 0 0 1 0;
+            """);
+            }
+            // Style individual headers
+            table.lookupAll(".column-header").forEach(n -> {
+                n.setStyle("-fx-background-color: transparent; -fx-padding: 12 8;");
+                Node label = n.lookup(".label");
+                if (label != null) {
+                    label.setStyle("-fx-text-fill: #4B5563; -fx-font-weight: 700; -fx-font-size: 12px;");
+                }
+            });
+        });
 
-        // ---------- FIX ROW HEIGHT ----------
-        table.setFixedCellSize(24);
+        // ---------- ROW FACTORY (Minimalist Selection) ----------
+        table.setRowFactory(tv -> {
+            TableRow<InvoiceItem> row = new TableRow<>();
+            row.setStyle("-fx-background-color: white; -fx-border-color: #F3F4F6; -fx-border-width: 0 0 1 0;");
+
+            row.hoverProperty().addListener((obs, wasHovered, isNowHovered) -> {
+                if (isNowHovered && !row.isEmpty()) {
+                    row.setStyle("-fx-background-color: #F9FAFB; -fx-border-color: #F3F4F6; -fx-border-width: 0 0 1 0;");
+                } else {
+                    row.setStyle("-fx-background-color: white; -fx-border-color: #F3F4F6; -fx-border-width: 0 0 1 0;");
+                }
+            });
+            return row;
+        });
 
         // ---------- SL NO ----------
         slNo.setCellFactory(col -> new TableCell<>() {
@@ -292,126 +418,162 @@ public class InvoiceController implements Refreshable,Navigable {
                     setText(null);
                 } else {
                     setText(String.valueOf(getIndex() + 1));
+                    setStyle("-fx-alignment: CENTER; -fx-text-fill: #9CA3AF;");
                 }
             }
         });
 
-
-        // ---------- ITEM COLUMN ----------
+        // ---------- ITEM COLUMN (ComboBox) ----------
         itemCol.setCellValueFactory(cell -> cell.getValue().itemNameProperty());
-
-        itemCol.setCellFactory(col ->
-                new ComboBoxTableCell<>(
-                        FXCollections.observableArrayList(itemNames)
-                )
-        );
-
+        itemCol.setCellFactory(col -> new ComboBoxTableCell<>(itemNames) {
+            @Override
+            public void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!empty) {
+                    // Mimics Zoho's "click to edit" text field look
+                    setStyle("-fx-padding: 5 10; -fx-alignment: CENTER_LEFT;");
+                }
+            }
+        });
 
         itemCol.setOnEditCommit(e -> {
             InvoiceItem row = e.getRowValue();
-            if (row == null) return;
-
-            String name = e.getNewValue();
-            if (name == null) return;
+            if (row == null || e.getNewValue() == null) return;
 
             masterItems.stream()
-                    .filter(i -> i.getName().equals(name))
+                    .filter(i -> i.getName().equals(e.getNewValue()))
                     .findFirst()
                     .ifPresent(i -> {
                         row.setItemName(i.getName());
                         row.setHsn(i.getHsn());
                         row.setUnit(i.getUnit());
                         row.setRate(i.getRate());
-                        row.setGstPercent(i.getGstPercent()); // 🔑 MISSING LINE
-
+                        row.setGstPercent(i.getGstPercent()); // ✅ Verified Missing Line Fix
                         if (row.getQty() <= 0) row.setQty(1);
                     });
-
-
-            recalc();
-            updateCustomerLock();
-
+            recalcAndRefresh();
         });
 
         // ---------- HSN ----------
         hsnCol.setCellValueFactory(cell -> cell.getValue().hsnProperty());
+        hsnCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!empty) { setStyle("-fx-alignment: CENTER; -fx-text-fill: #6B7280;"); setText(item); }
+                else setText(null);
+            }
+        });
 
         // ---------- QTY ----------
         qtyCol.setCellValueFactory(cell -> cell.getValue().qtyProperty().asObject());
-        qtyCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        qtyCol.setCellFactory(col -> new TextFieldTableCell<>(new DoubleStringConverter()) {
+            @Override
+            public void updateItem(Double val, boolean empty) {
+                super.updateItem(val, empty);
+                setStyle("-fx-alignment: CENTER; -fx-padding: 5;");
+            }
+        });
         qtyCol.setOnEditCommit(e -> {
-            if (e.getRowValue() == null) return;
-            e.getRowValue().setQty(e.getNewValue());
-            recalc();
+            if (e.getRowValue() != null) {
+                e.getRowValue().setQty(e.getNewValue());
+                recalcAndRefresh();
+            }
         });
 
         // ---------- UNIT ----------
         unitCol.setCellValueFactory(cell -> cell.getValue().unitProperty());
-
+        unitCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!empty) { setStyle("-fx-alignment: CENTER; -fx-text-fill: #6B7280;"); setText(item); }
+                else setText(null);
+            }
+        });
 
         // ---------- RATE ----------
         rateCol.setCellValueFactory(cell -> cell.getValue().rateProperty().asObject());
-        rateCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
+        rateCol.setCellFactory(col -> new TextFieldTableCell<>(new DoubleStringConverter()) {
+            @Override
+            public void updateItem(Double val, boolean empty) {
+                super.updateItem(val, empty);
+                setStyle("-fx-alignment: CENTER_RIGHT; -fx-padding: 0 10 0 0;");
+            }
+        });
         rateCol.setOnEditCommit(e -> {
-            if (e.getRowValue() == null) return;
-            e.getRowValue().setRate(e.getNewValue());
-            recalc();
+            if (e.getRowValue() != null) {
+                e.getRowValue().setRate(e.getNewValue());
+                recalcAndRefresh();
+            }
         });
 
         // ---------- GST ----------
-        ObservableList<Double> gstSlabs =
-                FXCollections.observableArrayList(0.0, 5.0, 12.0, 18.0, 28.0);
-
+        ObservableList<Double> gstSlabs = FXCollections.observableArrayList(0.0, 5.0, 12.0, 18.0, 28.0);
         gstCol.setCellValueFactory(cell -> cell.getValue().gstPercentProperty().asObject());
         gstCol.setCellFactory(ComboBoxTableCell.forTableColumn(gstSlabs));
         gstCol.setOnEditCommit(e -> {
-            if (e.getRowValue() == null) return;
-            e.getRowValue().setGstPercent(e.getNewValue());
-            recalc();
+            if (e.getRowValue() != null) {
+                e.getRowValue().setGstPercent(e.getNewValue());
+                recalcAndRefresh();
+            }
         });
 
-        // ---------- AMOUNT (READ ONLY) ----------
+        // ---------- AMOUNT (Zoho Bold Style) ----------
         amountCol.setCellValueFactory(cell -> cell.getValue().amountProperty().asObject());
         amountCol.setEditable(false);
-
-        // ---------- DELETE ROW COLUMN ----------
-        deleteCol.setCellFactory(col -> new TableCell<>() {
-
-            private final Button btn = new Button("✕");
-
-            {
-                btn.setStyle(
-                        "-fx-background-color: transparent;" +
-                                "-fx-text-fill: red;" +
-                                "-fx-font-weight: bold;"
-                );
-
-                btn.setOnAction(e -> {
-
-                    InvoiceItem item = getTableView()
-                            .getItems()
-                            .get(getIndex());
-
-                    if (rows.size() > 1) {
-                        rows.remove(item);
-                    } else {
-                        clearInvoiceItem(item);   // 🔑 CLEAR LAST ROW
-                    }
-
-                    recalc();
-                    updateCustomerLock();
-                });
-
-            }
-
+        amountCol.setCellFactory(col -> new TableCell<>() {
             @Override
-            protected void updateItem(Void item, boolean empty) {
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) setText(null);
+                else {
+                    setText(String.format("%.2f", item));
+                    setStyle("-fx-alignment: CENTER_RIGHT; -fx-padding: 0 15 0 0; -fx-font-weight: 700; -fx-text-fill: #111827;");
+                }
+            }
+        });
+
+        // ---------- COLUMN WIDTHS ----------
+        slNo.setPrefWidth(45);
+        hsnCol.setPrefWidth(90);
+        qtyCol.setPrefWidth(80);
+        unitCol.setPrefWidth(80);
+        rateCol.setPrefWidth(110);
+        gstCol.setPrefWidth(90);
+        deleteCol.setPrefWidth(40);
+        amountCol.setPrefWidth(140);
+
+        // ITEM details column absorbs all extra space
+        itemCol.prefWidthProperty().bind(table.widthProperty().subtract(680));
+
+        // ---------- DELETE COLUMN ----------
+        deleteCol.setCellFactory(col -> new TableCell<>() {
+            private final Button btn = new Button("✕");
+            {
+                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-font-size: 14px; -fx-cursor: hand;");
+                btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #EF4444;"));
+                btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF;"));
+                btn.setOnAction(e -> {
+                    InvoiceItem item = getTableView().getItems().get(getIndex());
+                    if (rows.size() > 1) rows.remove(item);
+                    else clearInvoiceItem(item);
+                    recalcAndRefresh();
+                });
+            }
+            @Override protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : btn);
             }
         });
-
     }
+
+    /** * Helper to update everything consistently after table edits
+     */
+    private void recalcAndRefresh() {
+        recalc();
+        updateCustomerLock();
+        updateStickyBySummaryVisibility();
+    }
+
 
     private void updateCustomerLock() {
         customerBox.setDisable(hasActualItems());
@@ -420,19 +582,40 @@ public class InvoiceController implements Refreshable,Navigable {
 
     /* ================= ACTIONS ================= */
 
+    private void addItemRowIfNeeded() {
+        if (rows.isEmpty()) {
+            rows.add(createEmptyRow());
+            return;
+        }
+
+        InvoiceItem last = rows.get(rows.size() - 1);
+        if (isRowValid(last)) {
+            rows.add(createEmptyRow());
+            table.scrollTo(rows.size() - 1);
+        }
+    }
+
     @FXML
-    private void addItemRow() {
+    private void forceAddEmptyRow() {
+        rows.add(createEmptyRow());
+        table.scrollTo(rows.size() - 1);
+    }
+
+
+
+    private InvoiceItem createEmptyRow() {
         InvoiceItem item = new InvoiceItem();
         item.setQty(1);
         item.setGstPercent(0);
-        rows.add(item);
-        int index = rows.size() - 1;
-        table.getSelectionModel().clearAndSelect(index);
-        table.scrollTo(index);
-
-        updateCustomerLock();
-
+        return item;
     }
+
+    private boolean isRowValid(InvoiceItem item) {
+        return item.getItemName() != null &&
+                !item.getItemName().isBlank();
+    }
+
+
 
 
     @FXML
@@ -678,7 +861,7 @@ public class InvoiceController implements Refreshable,Navigable {
         printBtn.setDisable(false);
 
         resetInvoice();
-        addItemRow();
+        addItemRowIfNeeded();
     }
 
 
@@ -690,8 +873,12 @@ public class InvoiceController implements Refreshable,Navigable {
             return;
         }
 
+        table.edit(-1, null);
+        recalc();
+
         Invoice invoice = buildInvoiceFromUI(); // draft invoice
         List<InvoiceItem> items = new ArrayList<>(rows);
+
 
         PrintInvoiceBuilder builder = new PrintInvoiceBuilder();
         Parent page = builder.build(invoice, items, null);
@@ -765,7 +952,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
         resetInvoice();
-        addItemRow();
+        addItemRowIfNeeded();
     }
 
     @FXML
@@ -832,6 +1019,53 @@ public class InvoiceController implements Refreshable,Navigable {
         });
 
         dialog.showAndWait();
+    }
+
+    /* ================= NEW INVOICE / RESET ACTION ================= */
+
+    @FXML
+    private void startNewInvoice() {
+        // 1. Reset Internal State
+        isDraft = true;
+        lockedIntraState = null;
+        previousCustomer = null;
+        draftSnapshot = null;
+
+        // 2. Clear Header & Meta Fields
+        customerBox.setValue(null);
+        customerBox.setDisable(false);
+        invoiceNoField.setText("AUTO");
+        invoiceDatePicker.setValue(LocalDate.now());
+        invoiceDatePicker.setDisable(false);
+
+        poNoField.clear();
+        poDatePicker.setValue(null);
+        dcNoField.clear();
+        dcDatePicker.setValue(null);
+        ewayBillField.clear();
+        dispatchThroughField.clear();
+
+        // 3. Reset Consignee
+        sameAsBuyerCheck.setSelected(false);
+        clearConsigneeFields();
+        setConsigneeFieldsDisabled(false);
+
+        // 4. Clear Table
+        rows.clear();
+        table.setEditable(true);
+        addItemRowIfNeeded(); // Adds the first default empty row
+
+        // 5. Reset Footer Buttons
+        saveButton.setDisable(false);
+        savePrintButton.setDisable(false);
+        previewButton.setDisable(false);
+        printBtn.setDisable(true);
+
+        // 6. Refresh UI totals to 0.00
+        recalc();
+
+        // Optional: Provide feedback to user
+        // info("Form cleared for new invoice.");
     }
 
     @FXML
@@ -1009,7 +1243,7 @@ public class InvoiceController implements Refreshable,Navigable {
         inv.setSgstTotal(parse(sgstLabel.getText()));
         inv.setIgstTotal(parse(igstLabel.getText()));
         inv.setRoundOff(parse(roundOffLabel.getText()));
-        inv.setGrandTotal(parse(totalLabel.getText()));
+        inv.setGrandTotal(parse(sharedTotalLabel.getText()));
 
         return inv;
     }
@@ -1017,7 +1251,22 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
     private double parse(String s) {
-        return s == null || s.isBlank() ? 0.0 : Double.parseDouble(s);
+        if (s == null || s.isBlank()) return 0.0;
+
+        // Remove common non-numeric artifacts if any (like currency symbols)
+        String clean = s.trim().replace(",", "");
+
+        // If it's just a sign or a dot, it's not a number yet
+        if (clean.equals("-") || clean.equals("+") || clean.equals(".")) {
+            return 0.0;
+        }
+
+        try {
+            return Double.parseDouble(clean);
+        } catch (NumberFormatException e) {
+            // Return 0.0 instead of crashing the UI Thread
+            return 0.0;
+        }
     }
 
     private void enterDraftMode() {
@@ -1033,13 +1282,15 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
     private void enterFinalMode(int invoiceNo) {
-        table.setDisable(true);
+        isDraft = false;
+        table.setEditable(false); // Lock the table
         saveButton.setDisable(true);
         savePrintButton.setDisable(true);
-        previewButton.setDisable(true);
-        invoiceNoField.setText(String.valueOf(invoiceNo));
         invoiceDatePicker.setDisable(true);
+        customerBox.setDisable(true);
 
+        invoiceNoField.setText(String.valueOf(invoiceNo));
+        printBtn.setDisable(false);
     }
 
     @FXML
@@ -1063,95 +1314,100 @@ public class InvoiceController implements Refreshable,Navigable {
     /* ================= CORE LOGIC ================= */
 
     private void recalc() {
-
+        // 1. Safety check: Reset if empty
         if (!hasActualItems()) {
             lockedIntraState = null;
             resetTableEditingState();
         }
 
-        double taxableTotal = 0;   // EXCLUSIVE of GST
-        double totalGst = 0;
+        // 2. Initialize local accumulators to ensure zero-start every time
+        double totalTaxable = 0;
+        double totalGstAmount = 0;
 
-        cgst = 0;
-        sgst = 0;
-        igst = 0;
-
+        // 3. Determine Tax Type
         boolean currentIntra = isIntraState();
-
         if (lockedIntraState == null && hasActualItems()) {
             lockedIntraState = currentIntra;
         }
 
+        // Lock logic (keeps the UI consistent)
         if (lockedIntraState != null && lockedIntraState != currentIntra) {
-            info("Buyer state cannot be changed after items are added");
-            buyerStateCodeField.setText(
-                    lockedIntraState ? String.valueOf(SELLER_STATE_CODE) : ""
-            );
+            buyerStateCodeField.setText(lockedIntraState ? String.valueOf(SELLER_STATE_CODE) : "");
             currentIntra = lockedIntraState;
         }
+        boolean intraState = (lockedIntraState != null) ? lockedIntraState : currentIntra;
 
-        boolean intraState = lockedIntraState != null
-                ? lockedIntraState
-                : currentIntra;
-
-        // ================= CALCULATION =================
+        // 4. Loop through rows and sum up
         for (InvoiceItem item : rows) {
+            if (item.getItemName() == null || item.getItemName().isBlank()) continue;
 
-            double taxable = item.getAmount(); // ALREADY EXCLUSIVE OF GST
-            double gst = taxable * item.getGstPercent() / 100.0;
+            // Model's getAmount() returns (Qty * Rate) based on your provided code
+            double lineTaxable = item.getAmount();
+            double lineGst = lineTaxable * (item.getGstPercent() / 100.0);
 
-            taxableTotal += taxable;
-            totalGst += gst;
+            totalTaxable += lineTaxable;
+            totalGstAmount += lineGst;
         }
 
-
-        // ================= GST SPLIT =================
+        // 5. Assign to Global Variables (used for DB saving later)
+        this.subtotal = totalTaxable;
         if (intraState) {
-            cgst = totalGst / 2;
-            sgst = totalGst / 2;
-            igst = 0;
+            this.cgst = totalGstAmount / 2.0;
+            this.sgst = totalGstAmount / 2.0;
+            this.igst = 0;
         } else {
-            igst = totalGst;
-            cgst = 0;
-            sgst = 0;
+            this.igst = totalGstAmount;
+            this.cgst = 0;
+            this.sgst = 0;
         }
 
-        // ================= TOTAL =================
-        double grandTotal = taxableTotal + totalGst;
-        double payable;
+        // 6. Final Calculation
+        double rawTotal = totalTaxable + this.cgst + this.sgst + this.igst;
         double roundOff = 0;
+        double finalPayable = rawTotal;
 
+        // 7. Zoho-Style Rounding Logic
         if (roundOffCheck.isSelected()) {
-
-            if (roundOffField.getText() == null || roundOffField.getText().isBlank()) {
-                // AUTO ROUND
-                double rounded = Math.round(grandTotal);
-                roundOff = rounded - (grandTotal);
-                payable = rounded;
+            String manualVal = roundOffField.getText();
+            if (manualVal == null || manualVal.isBlank()) {
+                // Auto-round to nearest whole number
+                finalPayable = Math.round(rawTotal);
+                roundOff = finalPayable - rawTotal;
             } else {
-                // MANUAL ROUND
-                try {
-                    roundOff = Double.parseDouble(roundOffField.getText());
-                } catch (Exception e) {
-                    roundOff = 0;
-                }
-                payable = grandTotal + roundOff;
+                // Manual adjustment
+                roundOff = parse(manualVal);
+                finalPayable = rawTotal + roundOff;
             }
+        }
+        this.grandTotal = finalPayable;
 
-        } else {
-            // ROUND OFF DISABLED
-            payable = taxableTotal + totalGst;
-            roundOff = 0;
+        // 8. Push to UI
+        // 8. Push to UI
+        taxableAmountLabel.setText(fmt(totalTaxable));
+        cgstLabel.setText(fmt(this.cgst));
+        sgstLabel.setText(fmt(this.sgst));
+        igstLabel.setText(fmt(this.igst));
+
+// --- ROUND OFF VISIBILITY LOGIC ---
+        roundOffLabel.setText(fmt(roundOff)); // for DB / print
+
+        boolean showRoundOff = roundOffCheck.isSelected() && Math.abs(roundOff) > 0.0001;
+
+        roundOffTextLabel.setVisible(showRoundOff);
+        roundOffTextLabel.setManaged(showRoundOff);
+
+        roundOffValueLabel.setVisible(showRoundOff);
+        roundOffValueLabel.setManaged(showRoundOff);
+
+        if (showRoundOff) {
+            roundOffValueLabel.setText(fmt(roundOff));
         }
 
+// --- TOTAL ---
+        sharedTotalLabel.setText(fmt(this.grandTotal));
 
-        // ================= UI =================
-        taxableAmountLabel.setText(fmt(taxableTotal));   // ✅ TAXABLE AMOUNT
-        cgstLabel.setText(fmt(cgst));
-        sgstLabel.setText(fmt(sgst));
-        igstLabel.setText(fmt(igst));
-        roundOffLabel.setText(fmt(roundOff));
-        totalLabel.setText(fmt(payable));
+        updateStickyBySummaryVisibility();
+
     }
 
 
@@ -1195,15 +1451,23 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
     private int persistInvoice(Invoice invoice, List<InvoiceItem> items) {
+        try {
+            int invoiceNo = InvoiceDAO.saveInvoice(invoice, items);
 
-        int invoiceNo = InvoiceDAO.saveInvoice(invoice, items);
+            isDraft = false;
+            enterFinalMode(invoiceNo);
+            loadCompanyHeader(invoice);
 
-        isDraft = false;                    // 🔑 first
-        enterFinalMode(invoiceNo);          // 🔑 lock UI
-        loadCompanyHeader(invoice);
-        invoiceDatePicker.setDisable(true); // 🔑 hard lock
+            // Disable the Save buttons so they can't double-click
+            saveButton.setDisable(true);
+            savePrintButton.setDisable(true);
+            printBtn.setDisable(false); // Enable the standalone print button
 
-        return invoiceNo;
+            return invoiceNo;
+        } catch (Exception e) {
+            error("Database Error: Could not save invoice. " + e.getMessage());
+            return -1;
+        }
     }
 
 
@@ -1229,9 +1493,84 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
 
+    private void addHoverEffect(Button btn) {
+        btn.setOnMouseEntered(e ->
+                btn.setStyle(btn.getStyle() +
+                        ";-fx-effect:dropshadow(gaussian, rgba(37,99,235,0.35), 10, 0, 0, 2);")
+        );
+
+        btn.setOnMouseExited(e ->
+                btn.setStyle(btn.getStyle().replaceAll("-fx-effect:.*?;", ""))
+        );
+    }
 
 
 
+    private void updateStickyBySummaryVisibility() {
+        if (!hasActualItems() || grandTotalRow == null || grandTotal <= 0) {
+            toggleSticky(false);
+            return;
+        }
+
+        // 1. Get the screen bounds of the real summary row
+        Bounds summaryBounds = grandTotalRow.localToScene(grandTotalRow.getBoundsInLocal());
+
+        // 2. Get the screen bounds of the ScrollPane's viewport
+        Bounds scrollBounds = root.localToScene(root.getBoundsInLocal());
+
+        // THE MAGIC TRIGGER:
+        // We show the sticky bar ONLY when the summary row's bottom
+        // is below the viewport's bottom edge.
+        boolean shouldBeSticky = summaryBounds.getMaxY() > scrollBounds.getMaxY();
+
+        toggleSticky(shouldBeSticky);
+    }
+
+    private void toggleSticky(boolean showSticky) {
+        if (stickyVisible == showSticky) return;
+        stickyVisible = showSticky;
+
+        if (showSticky) {
+            // DETACH from summary, ATTACH to sticky bar
+            summaryTotalSlot.getChildren().remove(sharedTotalLabel);
+            if (!stickyTotalSlot.getChildren().contains(sharedTotalLabel)) {
+                stickyTotalSlot.getChildren().add(sharedTotalLabel);
+            }
+
+            stickyTotalBar.setVisible(true);
+            stickyTotalBar.setManaged(true);
+
+            // Subtle "Slide Up" to make it feel like it's sticking to the bottom
+            stickyTotalBar.setOpacity(0);
+            FadeTransition ft = new FadeTransition(Duration.millis(80), stickyTotalBar);
+            ft.setToValue(1);
+            ft.play();
+
+        } else {
+            // DETACH from sticky bar, ATTACH back to summary
+            stickyTotalBar.setVisible(false);
+            stickyTotalBar.setManaged(false);
+
+            stickyTotalSlot.getChildren().remove(sharedTotalLabel);
+            if (!summaryTotalSlot.getChildren().contains(sharedTotalLabel)) {
+                summaryTotalSlot.getChildren().add(sharedTotalLabel);
+            }
+        }
+    }
+
+    private boolean isNodeFullyVisible(Node node, ScrollPane sp) {
+        if (node == null || sp == null || node.getScene() == null) return false;
+
+        // Get the screen bounds of the grandTotalRow
+        Bounds nodeBounds = node.localToScene(node.getBoundsInLocal());
+        // Get the screen bounds of the ScrollPane's viewport
+        Bounds scrollBounds = sp.localToScene(sp.getBoundsInLocal());
+
+        // We only care about the vertical axis for a sticky footer
+        // The row is "out of view" if its top is below the scrollpane's bottom
+        return scrollBounds.contains(nodeBounds.getMinX(), nodeBounds.getMinY()) &&
+                scrollBounds.contains(nodeBounds.getMaxX(), nodeBounds.getMaxY());
+    }
 
     /* ================= UTILS ================= */
 
@@ -1262,6 +1601,8 @@ public class InvoiceController implements Refreshable,Navigable {
 
         recalc();
         updateCustomerLock();
+        updateStickyBySummaryVisibility();
+
     }
 
 
