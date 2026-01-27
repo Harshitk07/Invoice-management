@@ -491,31 +491,91 @@ public class InvoiceController implements Refreshable,Navigable {
         });
 
         // ---------- RATE ----------
-        rateCol.setCellValueFactory(cell -> cell.getValue().rateProperty().asObject());
-        rateCol.setCellFactory(col -> new TextFieldTableCell<>(new DoubleStringConverter()) {
+        // ---------- RATE (READ ONLY) ----------
+        rateCol.setCellValueFactory(cell ->
+                cell.getValue().rateProperty().asObject()
+        );
+
+        rateCol.setEditable(false);
+
+        rateCol.setCellFactory(col -> new TableCell<>() {
             @Override
-            public void updateItem(Double val, boolean empty) {
+            protected void updateItem(Double val, boolean empty) {
                 super.updateItem(val, empty);
-                setStyle("-fx-alignment: CENTER_RIGHT; -fx-padding: 0 10 0 0;");
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f", val));
+                    setStyle("""
+                -fx-alignment: CENTER_RIGHT;
+                -fx-padding: 0 10 0 0;
+                -fx-text-fill: #374151;
+                -fx-font-weight: 700;
+            """);
+                }
             }
         });
-        rateCol.setOnEditCommit(e -> {
-            if (e.getRowValue() != null) {
-                e.getRowValue().setRate(e.getNewValue());
-                recalcAndRefresh();
-            }
-        });
+
 
         // ---------- GST ----------
         ObservableList<Double> gstSlabs = FXCollections.observableArrayList(0.0, 5.0, 12.0, 18.0, 28.0);
         gstCol.setCellValueFactory(cell -> cell.getValue().gstPercentProperty().asObject());
         gstCol.setCellFactory(ComboBoxTableCell.forTableColumn(gstSlabs));
         gstCol.setOnEditCommit(e -> {
-            if (e.getRowValue() != null) {
-                e.getRowValue().setGstPercent(e.getNewValue());
+
+            InvoiceItem row = e.getRowValue();
+            if (row == null) return;
+
+            String itemName = row.getItemName();
+            if (itemName == null || itemName.isBlank()) return;
+
+            double newGst = e.getNewValue();
+
+            // 🔍 Find Item Master
+            Item master = masterItems.stream()
+                    .filter(i -> i.getName().equals(itemName))
+                    .findFirst()
+                    .orElse(null);
+
+            if (master == null) return;
+
+            // No change → nothing to do
+            if (Double.compare(master.getGstPercent(), newGst) == 0) {
+                row.setGstPercent(newGst);
                 recalcAndRefresh();
+                return;
             }
+
+            // 🔒 CONFIRMATION
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Update Item GST");
+            confirm.setHeaderText("GST Change");
+            confirm.setContentText(
+                    "Item: " + itemName +
+                            "\nOld GST: " + master.getGstPercent() + "%" +
+                            "\nNew GST: " + newGst + "%" +
+                            "\n\nThis will update Item Master.\nProceed?"
+            );
+
+            if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                // revert
+                row.setGstPercent(master.getGstPercent());
+                table.refresh();
+                return;
+            }
+
+            // ✅ UPDATE ITEM MASTER
+            master.setGstPercent(newGst);
+            ItemDAO.update(master);   // 🔑 REQUIRED
+
+            // ✅ SYNC ALL ROWS USING SAME ITEM
+            rows.stream()
+                    .filter(r -> itemName.equals(r.getItemName()))
+                    .forEach(r -> r.setGstPercent(newGst));
+
+            recalcAndRefresh();
         });
+
 
         // ---------- AMOUNT (Zoho Bold Style) ----------
         amountCol.setCellValueFactory(cell -> cell.getValue().amountProperty().asObject());
@@ -1288,7 +1348,7 @@ public class InvoiceController implements Refreshable,Navigable {
         savePrintButton.setDisable(true);
         invoiceDatePicker.setDisable(true);
         customerBox.setDisable(true);
-
+        gstCol.setEditable(false);
         invoiceNoField.setText(String.valueOf(invoiceNo));
         printBtn.setDisable(false);
     }
@@ -1319,6 +1379,17 @@ public class InvoiceController implements Refreshable,Navigable {
             lockedIntraState = null;
             resetTableEditingState();
         }
+
+        // 🔒 FORCE GST FROM ITEM MASTER
+        for (InvoiceItem r : rows) {
+            if (r.getItemName() == null) continue;
+
+            masterItems.stream()
+                    .filter(i -> i.getName().equals(r.getItemName()))
+                    .findFirst()
+                    .ifPresent(i -> r.setGstPercent(i.getGstPercent()));
+        }
+
 
         // 2. Initialize local accumulators to ensure zero-start every time
         double totalTaxable = 0;
