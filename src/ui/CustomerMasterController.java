@@ -1,8 +1,10 @@
 package ui;
 
+import context.security.CapabilityContext;
 import dao.CustomerDAO;
 import javafx.collections.*;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -10,7 +12,6 @@ import javafx.scene.layout.GridPane;
 import model.Customer;
 import ui.interfaces.Navigable;
 import context.Capability;
-import context.CapabilityGate;
 
 
 public class CustomerMasterController implements Navigable{
@@ -21,7 +22,7 @@ public class CustomerMasterController implements Navigable{
     private void applyCapabilityUI() {
 
         boolean canEditCustomers =
-                CapabilityGate.allowed(Capability.CUSTOMER_MASTER_EDIT);
+                CapabilityContext.get().has(Capability.CUSTOMER_MASTER_EDIT);
 
         table.setEditable(canEditCustomers);
         activeCol.setEditable(canEditCustomers);
@@ -56,6 +57,43 @@ public class CustomerMasterController implements Navigable{
         table.setEditable(true);
         nameCol.setCellValueFactory(c -> c.getValue().nameProperty());
         addressCol.setCellValueFactory(c -> c.getValue().addressProperty());
+        addressCol.setCellFactory(col -> new TableCell<>() {
+
+            private final Label label = new Label();
+
+            {
+                label.setWrapText(true);
+                label.setStyle(
+                        "-fx-font-size:13.5;" +
+                                "-fx-text-fill:#111827;"
+                );
+
+                label.setMaxWidth(Double.MAX_VALUE);
+            }
+
+            @Override
+            protected void updateItem(String text, boolean empty) {
+                super.updateItem(text, empty);
+
+                if (empty || text == null) {
+                    setGraphic(null);
+                } else {
+                    label.setText(text);
+                    setGraphic(label);
+                }
+            }
+
+            @Override
+            public void updateSelected(boolean selected) {
+                super.updateSelected(selected);
+                // preserve selection color
+                label.setTextFill(
+                        selected ? javafx.scene.paint.Color.WHITE
+                                : javafx.scene.paint.Color.web("#111827")
+                );
+            }
+        });
+
         stateCol.setCellValueFactory(c -> c.getValue().stateProperty());
         gstCol.setCellValueFactory(c -> c.getValue().gstNoProperty());
         nameCol.setStyle("-fx-alignment: CENTER-LEFT;");
@@ -90,11 +128,27 @@ public class CustomerMasterController implements Navigable{
                         "-fx-padding:4 10;" +
                                 "-fx-font-size:12;"
                 );
+
+                btn.setOnAction(e -> {
+                    Customer c = getTableView()
+                            .getItems()
+                            .get(getIndex());
+
+                    if (!CapabilityContext.get().has(Capability.CUSTOMER_MASTER_EDIT)) {
+                        new Alert(Alert.AlertType.WARNING,
+                                "You do not have permission to edit customers.")
+                                .showAndWait();
+                        return;
+                    }
+
+                    openEditDialog(c);
+                });
             }
 
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
+
                 if (empty) {
                     setGraphic(null);
                 } else {
@@ -103,6 +157,7 @@ public class CustomerMasterController implements Navigable{
                 }
             }
         });
+
 
 
 
@@ -133,13 +188,12 @@ public class CustomerMasterController implements Navigable{
     @FXML
     private void openAddCustomerDialog() {
 
-        if (!CapabilityGate.allowed(Capability.CUSTOMER_MASTER_EDIT)) {
+        if (!CapabilityContext.get().has(Capability.CUSTOMER_MASTER_EDIT)) {
             new Alert(Alert.AlertType.WARNING,
                     "You do not have permission to add customers.")
                     .showAndWait();
             return;
         }
-
 
         Dialog<Customer> dialog = new Dialog<>();
         dialog.setTitle("Add Customer");
@@ -149,31 +203,60 @@ public class CustomerMasterController implements Navigable{
         dialog.getDialogPane().getButtonTypes()
                 .addAll(saveBtn, ButtonType.CANCEL);
 
+        // ===== Fields =====
         TextField name = new TextField();
-        TextArea address = new TextArea();
         TextField gst = new TextField();
         TextField state = new TextField();
         TextField code = new TextField();
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
+        TextArea address = new TextArea();
+        address.setWrapText(true);
+        address.setPrefRowCount(4);
 
-        grid.add(new Label("Name*"), 0, 0);
+        name.setPromptText("Customer Name");
+        gst.setPromptText("GST Number");
+        state.setPromptText("State");
+        code.setPromptText("State Code");
+        address.setPromptText("Full Address");
+
+        // Uniform sizing
+        for (Control ctrl : new Control[]{name, gst, state, code}) {
+            ctrl.setPrefHeight(34);
+            ctrl.setStyle("-fx-font-size:13.5;");
+        }
+
+        address.setStyle("-fx-font-size:13.5;");
+
+        // ===== Layout =====
+        GridPane grid = new GridPane();
+        grid.setHgap(12);
+        grid.setVgap(12);
+        grid.setPadding(new Insets(16));
+
+        grid.add(new Label("Name *"), 0, 0);
         grid.add(name, 1, 0);
-        grid.add(new Label("Address"), 0, 1);
-        grid.add(address, 1, 1);
-        grid.add(new Label("GST No"), 0, 2);
-        grid.add(gst, 1, 2);
-        grid.add(new Label("State"), 0, 3);
-        grid.add(state, 1, 3);
-        grid.add(new Label("State Code"), 0, 4);
-        grid.add(code, 1, 4);
+
+        grid.add(new Label("GST No"), 0, 1);
+        grid.add(gst, 1, 1);
+
+        grid.add(new Label("State"), 0, 2);
+        grid.add(state, 1, 2);
+
+        grid.add(new Label("State Code"), 0, 3);
+        grid.add(code, 1, 3);
+
+        grid.add(new Label("Address"), 0, 4);
+        grid.add(address, 1, 4);
 
         dialog.getDialogPane().setContent(grid);
 
+        // ===== Validation + Result =====
         dialog.setResultConverter(bt -> {
-            if (bt == saveBtn && !name.getText().isBlank()) {
+            if (bt == saveBtn) {
+                if (name.getText().isBlank()) {
+                    return null;
+                }
+
                 Customer c = new Customer();
                 c.setName(name.getText().trim());
                 c.setAddress(address.getText().trim());
@@ -192,6 +275,7 @@ public class CustomerMasterController implements Navigable{
         });
     }
 
+
     // ================= EDIT CUSTOMER =================
 
     private void openEditDialog(Customer c) {
@@ -204,36 +288,56 @@ public class CustomerMasterController implements Navigable{
         dialog.getDialogPane().getButtonTypes()
                 .addAll(saveBtn, ButtonType.CANCEL);
 
+        // ===== Fields =====
         TextField name = new TextField(c.getName());
-        TextArea address = new TextArea(c.getAddress());
         TextField gst = new TextField(c.getGstNo());
         TextField state = new TextField(c.getState());
         TextField code = new TextField(c.getStateCode());
 
+        TextArea address = new TextArea(c.getAddress());
+        address.setWrapText(true);
+        address.setPrefRowCount(4);
+
+        // Uniform sizing
+        for (Control ctrl : new Control[]{name, gst, state, code}) {
+            ctrl.setStyle("-fx-font-size:13.5;");
+            ctrl.setPrefHeight(34);
+        }
+
+        address.setStyle("-fx-font-size:13.5;");
+
+        // ===== Layout =====
         GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
+        grid.setHgap(12);
+        grid.setVgap(12);
+        grid.setPadding(new Insets(16));
 
         grid.add(new Label("Name"), 0, 0);
         grid.add(name, 1, 0);
-        grid.add(new Label("Address"), 0, 1);
-        grid.add(address, 1, 1);
-        grid.add(new Label("GST No"), 0, 2);
-        grid.add(gst, 1, 2);
-        grid.add(new Label("State"), 0, 3);
-        grid.add(state, 1, 3);
-        grid.add(new Label("State Code"), 0, 4);
-        grid.add(code, 1, 4);
+
+        grid.add(new Label("GST No"), 0, 1);
+        grid.add(gst, 1, 1);
+
+        grid.add(new Label("State"), 0, 2);
+        grid.add(state, 1, 2);
+
+        grid.add(new Label("State Code"), 0, 3);
+        grid.add(code, 1, 3);
+
+        grid.add(new Label("Address"), 0, 4);
+        grid.add(address, 1, 4);
+
+        GridPane.setColumnSpan(address, 1);
 
         dialog.getDialogPane().setContent(grid);
 
         dialog.setResultConverter(bt -> {
             if (bt == saveBtn) {
-                c.setName(name.getText());
-                c.setAddress(address.getText());
-                c.setGstNo(gst.getText());
-                c.setState(state.getText());
-                c.setStateCode(code.getText());
+                c.setName(name.getText().trim());
+                c.setAddress(address.getText().trim());
+                c.setGstNo(gst.getText().trim());
+                c.setState(state.getText().trim());
+                c.setStateCode(code.getText().trim());
                 return c;
             }
             return null;
@@ -244,6 +348,7 @@ public class CustomerMasterController implements Navigable{
             reload();
         });
     }
+
 
     // ================= UTIL =================
 

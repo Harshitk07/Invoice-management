@@ -1,9 +1,10 @@
 package app;
 
-import context.AppMode;
-import context.CapabilityGate;
+import context.Capability;
 import context.CompanyContext;
 import context.UserContext;
+import context.security.CapabilityContext;
+import context.security.StaticCapabilityGate;
 import dao.DB;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -16,6 +17,8 @@ import service.StaticCompanyProfileProvider;
 import service.StaticUserContextProvider;
 import ui.DashboardController;
 import ui.interfaces.SystemStatusProvider;
+
+import java.util.Set;
 
 public class MainApp extends Application {
 
@@ -31,7 +34,22 @@ public class MainApp extends Application {
         UserContext.init(new StaticUserContextProvider());
 
 // OWNER install for now (full access)
-        CapabilityGate.setMode(AppMode.OWNER);
+        CapabilityContext.init(
+                new StaticCapabilityGate(
+                        Set.of(
+                                Capability.CUSTOMER_MASTER_EDIT,
+                                Capability.ITEM_MASTER_EDIT,
+                                Capability.SYSTEM_RESTORE,
+                                Capability.VIEW_ANALYTICS,
+                                Capability.PERSONAL_TOOLS,
+                                Capability.VIEW_HISTORY,
+                                Capability.NEW_INVOICE,
+                                Capability.SYSTEM_BACKUP_CLEANUP
+                        )
+                )
+        );
+
+
 
 
         // ================= APP SERVICES =================

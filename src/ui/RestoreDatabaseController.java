@@ -1,5 +1,6 @@
 package ui;
 
+import context.security.CapabilityContext;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -9,7 +10,6 @@ import javafx.scene.layout.VBox;
 import service.DatabaseBackupService;
 import ui.interfaces.Navigable;
 import context.Capability;
-import context.CapabilityGate;
 
 import javafx.scene.input.MouseEvent;
 import java.nio.file.Files;
@@ -65,7 +65,7 @@ public class RestoreDatabaseController implements Navigable{
                 backupList.getSelectionModel().selectedItemProperty().isNull()
         );
 
-        if (!CapabilityGate.allowed(Capability.SYSTEM_RESTORE)) {
+        if (!CapabilityContext.get().has(Capability.SYSTEM_RESTORE)) {
             restoreButton.setDisable(true);
         }
 
@@ -355,7 +355,7 @@ public class RestoreDatabaseController implements Navigable{
     @FXML
     private void cleanupManual() {
 
-        if (!CapabilityGate.allowed(Capability.SYSTEM_MAINTENANCE)) {
+        if (!CapabilityContext.get().has(Capability.SYSTEM_BACKUP_CLEANUP)) {
             new Alert(Alert.AlertType.ERROR,
                     "You do not have permission to perform this action.")
                     .showAndWait();

@@ -22,6 +22,9 @@ import model.InvoiceCopyType;
 import service.DatabaseBackupService;
 import ui.interfaces.Navigable;
 import ui.interfaces.SystemStatusProvider;
+import context.security.CapabilityContext;
+import context.Capability;
+
 
 import java.nio.file.Path;
 import java.util.*;
@@ -251,24 +254,52 @@ public class DashboardController {
     /* ================= PUBLIC NAV METHODS (UNCHANGED SIGNATURES) ================= */
 
     public void openInvoice() {
+        if (!CapabilityContext.get().has(Capability.NEW_INVOICE)) {
+            deny(Capability.NEW_INVOICE);
+            return; // silent fail or optional alert
+        }
         navigate("InvoiceView.fxml", true);
     }
 
     public void openInvoiceHistory() {
+        if (!CapabilityContext.get().has(Capability.VIEW_HISTORY)) {
+            deny(Capability.VIEW_HISTORY);
+            return; // silent fail or optional alert
+        }
         navigate("InvoiceHistoryView.fxml", true);
     }
 
     public void openItemMaster() {
+        if (!CapabilityContext.get().has(Capability.ITEM_MASTER_EDIT)) {
+            deny(Capability.ITEM_MASTER_EDIT);
+            return; // silent fail or optional alert
+        }
         navigate("ItemMasterView.fxml", true);
     }
 
     public void openCustomerMaster() {
+        if (!CapabilityContext.get().has(Capability.CUSTOMER_MASTER_EDIT)) {
+            deny(Capability.CUSTOMER_MASTER_EDIT);
+            return; // silent fail or optional alert
+        }
         navigate("CustomerMaster.fxml", true);
     }
 
     @FXML
     private void openRestoreDatabase() {
+        if (!CapabilityContext.get().has(Capability.SYSTEM_RESTORE)) {
+            deny(Capability.SYSTEM_RESTORE);
+            return; // silent fail or optional alert
+        }
         navigate("RestoreDatabaseView.fxml", true);
+    }
+
+    private void deny(Capability capability) {
+        new Alert(
+                Alert.AlertType.WARNING,
+                "You do not have permission to perform this action.\n\n" +
+                        "Required permission: " + capability.name()
+        ).showAndWait();
     }
 
 

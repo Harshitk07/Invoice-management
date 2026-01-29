@@ -1,7 +1,7 @@
 package ui;
 
 import context.Capability;
-import context.CapabilityGate;
+import context.security.CapabilityContext;
 import dao.ItemDAO;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.*;
@@ -204,7 +204,7 @@ public class ItemMasterController implements Navigable{
     private void applyCapabilityUI() {
 
         boolean canEditItems =
-                CapabilityGate.allowed(Capability.ITEM_MASTER_EDIT);
+                CapabilityContext.get().has(Capability.ITEM_MASTER_EDIT);
 
         name.setDisable(!canEditItems);
         hsn.setDisable(!canEditItems);

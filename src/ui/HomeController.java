@@ -1,5 +1,6 @@
 package ui;
 
+import context.security.CapabilityContext;
 import javafx.animation.*;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -8,7 +9,6 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import context.Capability;
-import context.CapabilityGate;
 import ui.interfaces.Navigable;
 import ui.interfaces.SystemStatusSnapshot;
 
@@ -190,10 +190,10 @@ public class HomeController implements Navigable{
     private void applyCapabilityVisibility() {
 
         boolean showAnalytics =
-                CapabilityGate.allowed(Capability.VIEW_ANALYTICS);
+                CapabilityContext.get().has(Capability.VIEW_ANALYTICS);
 
         boolean showPersonalTools =
-                CapabilityGate.allowed(Capability.PERSONAL_TOOLS);
+                CapabilityContext.get().has(Capability.PERSONAL_TOOLS);
 
         analyticsCard.setManaged(showAnalytics);
         analyticsCard.setVisible(showAnalytics);
