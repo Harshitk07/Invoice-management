@@ -793,6 +793,9 @@
                  -fx-padding: 0 40;
                  -fx-border-color: #E5E7EB;
                  -fx-border-width: 1 0 0 0;">
+        <Button text="RESET"
+                onAction="#onResetInvoice"
+                prefHeight="44" prefWidth="140"/>
         <Button fx:id="previewButton" text="PREVIEW"
                 onAction="#previewInvoice"
                 prefHeight="44" prefWidth="140"/>

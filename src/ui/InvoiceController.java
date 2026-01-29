@@ -5,8 +5,6 @@ import dao.CustomerDAO;
 import dao.InvoiceDAO;
 import dao.ItemDAO;
 import javafx.animation.FadeTransition;
-import javafx.animation.ParallelTransition;
-import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -14,7 +12,6 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.BoundingBox;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -95,6 +92,9 @@ public class InvoiceController implements Refreshable,Navigable {
     @FXML private TextField buyerGstField;
     @FXML private TextField buyerStateField;
     @FXML private TextField buyerStateCodeField;
+    @FXML private Button addCustomerButton;
+    @FXML private Button editCustomerButton;
+
 
     /* ================= CONSIGNEE ================= */
 
@@ -168,6 +168,7 @@ public class InvoiceController implements Refreshable,Navigable {
     private boolean isDraft = true;
     private Customer previousCustomer = null;
     private Invoice draftSnapshot; // seller snapshot cache
+    private boolean isResetting = false;
 
 
     /* ================= CALCULATED TOTALS ================= */
@@ -274,9 +275,11 @@ public class InvoiceController implements Refreshable,Navigable {
 
         customerBox.valueProperty().addListener((obs, oldVal, newVal) -> {
 
+            if (customers.isEmpty()) return;
+
             // 🔒 HARD BLOCK: do not allow change if items exist
-            if (hasActualItems()) {
-                Platform.runLater(() -> customerBox.setValue(previousCustomer));
+            if (!isResetting && hasActualItems()) {
+                customerBox.getSelectionModel().select(previousCustomer);
                 info("Remove all items to change customer");
                 return;
             }
@@ -636,8 +639,20 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
     private void updateCustomerLock() {
-        customerBox.setDisable(hasActualItems());
+
+        boolean locked = hasActualItems();
+
+        customerBox.setDisable(locked);
+
+        if (addCustomerButton != null) {
+            addCustomerButton.setDisable(locked);
+        }
+
+        if (editCustomerButton != null) {
+            editCustomerButton.setDisable(locked || customerBox.getValue() == null);
+        }
     }
+
 
 
     /* ================= ACTIONS ================= */
@@ -665,7 +680,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
     private InvoiceItem createEmptyRow() {
         InvoiceItem item = new InvoiceItem();
-        item.setQty(1);
+        item.setQty(0);
         item.setGstPercent(0);
         return item;
     }
@@ -719,18 +734,27 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
     private boolean hasActualItems() {
-        return rows.stream()
-                .anyMatch(r ->
-                        r.getItemName() != null &&
-                                !r.getItemName().isBlank()
-                );
+        return rows.stream().anyMatch(r ->
+                r.getItemName() != null &&
+                        !r.getItemName().isBlank() &&
+                        r.getQty() > 0 &&
+                        r.getRate() > 0
+        );
     }
+
+
 
 
 
 
     @FXML
     private void addNewCustomer() {
+
+        if (hasActualItems()) {
+            info("Remove all items before adding a new customer");
+            return;
+        }
+
 
         Dialog<Customer> dialog = new Dialog<>();
         dialog.setTitle("Add New Customer");
@@ -810,6 +834,11 @@ public class InvoiceController implements Refreshable,Navigable {
     @FXML
     private void editCustomer() {
 
+        if (hasActualItems()) {
+            info("Remove all items before editing customer");
+            return;
+        }
+
         Customer selected = customerBox.getValue();
         if (selected == null) {
             info("Select a customer to edit");
@@ -867,10 +896,21 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
 
-    void reloadCustomers() {
-        customers.setAll(CustomerDAO.findActive());
+    private void reloadCustomers() {
 
+        List<Customer> fresh = CustomerDAO.findActive();
+
+        Customer selected = isDraft ? customerBox.getValue() : null;
+
+        customers.clear();
+        customers.addAll(fresh);
+
+        if (selected != null && customers.contains(selected)) {
+            Platform.runLater(() -> customerBox.setValue(selected));
+        }
     }
+
+
 
 
     private void copyBuyerToConsignee(Customer c) {
@@ -1084,16 +1124,43 @@ public class InvoiceController implements Refreshable,Navigable {
     /* ================= NEW INVOICE / RESET ACTION ================= */
 
     @FXML
+    private void onResetInvoice() {
+
+        if (hasActualItems()) {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    "This will clear the current invoice.\nContinue?",
+                    ButtonType.OK, ButtonType.CANCEL);
+
+            if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+                return;
+            }
+        }
+
+        startNewInvoice();
+    }
+
+
+    @FXML
     private void startNewInvoice() {
+
+        isResetting = true;   // 🔒 BEGIN RESET
+
         // 1. Reset Internal State
         isDraft = true;
         lockedIntraState = null;
         previousCustomer = null;
         draftSnapshot = null;
 
-        // 2. Clear Header & Meta Fields
+        // 2. Clear table FIRST
+        resetTableEditingState();
+        rows.clear();
+
+        // 3. Clear customer AFTER rows are gone
         customerBox.setValue(null);
         customerBox.setDisable(false);
+        clearBuyerFields();
+
+        // 4. Reset rest
         invoiceNoField.setText("AUTO");
         invoiceDatePicker.setValue(LocalDate.now());
         invoiceDatePicker.setDisable(false);
@@ -1105,33 +1172,32 @@ public class InvoiceController implements Refreshable,Navigable {
         ewayBillField.clear();
         dispatchThroughField.clear();
 
-        // 3. Reset Consignee
         sameAsBuyerCheck.setSelected(false);
         clearConsigneeFields();
         setConsigneeFieldsDisabled(false);
 
-        // 4. Clear Table
-        rows.clear();
         table.setEditable(true);
-        addItemRowIfNeeded(); // Adds the first default empty row
+        addItemRowIfNeeded();
 
-        // 5. Reset Footer Buttons
         saveButton.setDisable(false);
         savePrintButton.setDisable(false);
         previewButton.setDisable(false);
         printBtn.setDisable(true);
 
-        // 6. Refresh UI totals to 0.00
         recalc();
+        updateCustomerLock();
 
-        // Optional: Provide feedback to user
-        // info("Form cleared for new invoice.");
+        isResetting = false;  // 🔓 END RESET
     }
 
-    @FXML
-    private void reprintInvoice() {
-        openReprintDialog();
+
+    private void clearBuyerFields() {
+        buyerAddressArea.clear();
+        buyerGstField.clear();
+        buyerStateField.clear();
+        buyerStateCodeField.clear();
     }
+
 
 
     public static void printStatic(int invoiceNo, InvoiceCopyType copyType) {
@@ -1376,8 +1442,18 @@ public class InvoiceController implements Refreshable,Navigable {
     private void recalc() {
         // 1. Safety check: Reset if empty
         if (!hasActualItems()) {
+            subtotal = cgst = sgst = igst = grandTotal = 0;
+
+            taxableAmountLabel.setText("0.00");
+            cgstLabel.setText("0.00");
+            sgstLabel.setText("0.00");
+            igstLabel.setText("0.00");
+            roundOffLabel.setText("0.00");
+            sharedTotalLabel.setText("0.00");
+
+            toggleSticky(false);
             lockedIntraState = null;
-            resetTableEditingState();
+            return; // 🔑 THIS WAS MISSING
         }
 
         // 🔒 FORCE GST FROM ITEM MASTER
@@ -1513,8 +1589,10 @@ public class InvoiceController implements Refreshable,Navigable {
     private void resetInvoice() {
         draftSnapshot = null; // 🔑 CRITICAL
         enterDraftMode();
+        resetTableEditingState();
         rows.clear();
         lockedIntraState = null;
+        recalc();
         previousCustomer = null;
         updateCustomerLock();
         table.getSelectionModel().clearSelection();
@@ -1679,10 +1757,10 @@ public class InvoiceController implements Refreshable,Navigable {
 
     private void clearInvoiceItem(InvoiceItem item) {
 
-        item.setItemName("");
+        item.setItemName(null);
         item.setHsn("");
         item.setUnit("");
-        item.setQty(1);
+        item.setQty(0);
         item.setRate(0);
         item.setGstPercent(0);
 
