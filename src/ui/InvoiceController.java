@@ -83,6 +83,8 @@ public class InvoiceController implements Refreshable,Navigable {
     @FXML private Label companyDescriptionLabel;
     @FXML private Label companyGstLabel;
     @FXML private Label companyContactLabel;
+    @FXML private Label companyAvatarLabel;
+
 
 
     /* ================= BUYER ================= */
@@ -340,9 +342,15 @@ public class InvoiceController implements Refreshable,Navigable {
         companyNameLabel.setText(c.getLegalName());
         companyDescriptionLabel.setText(c.getDescription());
         companyGstLabel.setText("GST No: " + c.getGstin());
-        companyContactLabel.setText(
-                "Phone: " + c.getPhoneNo() + " | Email: " + c.getEmail()
-        );
+
+        // Avatar = first letter of company name
+        if (c.getLegalName() != null && !c.getLegalName().isBlank()) {
+            companyAvatarLabel.setText(
+                    c.getLegalName().substring(0, 1).toUpperCase()
+            );
+        } else {
+            companyAvatarLabel.setText("?");
+        }
     }
 
 
