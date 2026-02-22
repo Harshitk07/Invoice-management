@@ -77,6 +77,8 @@ public class InvoiceController implements Refreshable,Navigable {
 
     /* ================= HEADER ================= */
 
+    private Integer currentInvoiceNo;
+
     @FXML private TextField invoiceNoField;
     @FXML private DatePicker invoiceDatePicker;
     @FXML private Label companyNameLabel;
@@ -257,6 +259,13 @@ public class InvoiceController implements Refreshable,Navigable {
             return null;
         }));
 
+        Platform.runLater(() -> {
+
+            // Match width
+            stickyTotalBar.prefWidthProperty().bind(invoiceSummaryBox.widthProperty());
+            stickyTotalBar.maxWidthProperty().bind(invoiceSummaryBox.widthProperty());
+
+        });
 
         customers.setAll(CustomerDAO.findActive());
         customerBox.setItems(customers);
@@ -949,7 +958,6 @@ public class InvoiceController implements Refreshable,Navigable {
             return;
         }
 
-        validateBeforeSave();
         try {
             validateBeforeSave();
         } catch (RuntimeException ex) {
@@ -1032,32 +1040,29 @@ public class InvoiceController implements Refreshable,Navigable {
     private void saveAndPrint() {
 
         if (!isDraft) {
-            printStatic(Integer.parseInt(invoiceNoField.getText()),
-                    InvoiceCopyType.ORIGINAL);
+            printStatic(currentInvoiceNo, InvoiceCopyType.ORIGINAL);
             return;
         }
 
-
-        validateBeforeSave();
-
-        if (customerBox.getValue() == null) {
-            info("Select a customer");
+        try {
+            validateBeforeSave();
+        } catch (RuntimeException ex) {
+            info(ex.getMessage());
             return;
-        }
-
-        for (InvoiceItem r : rows) {
-            if (r.getItemName() == null || r.getItemName().isBlank()) {
-                info("Remove empty item rows before saving");
-                return;
-            }
         }
 
         Invoice invoice = buildInvoiceFromUI();
         List<InvoiceItem> items = new ArrayList<>(rows);
 
-        int invoiceNo = persistInvoice(invoice, items);
-        printStatic(invoiceNo, InvoiceCopyType.ORIGINAL);
+        int invoiceNo;
+        try {
+            invoiceNo = persistInvoice(invoice, items);
+        } catch (Exception e) {
+            error("Save failed. Invoice not printed.");
+            return;
+        }
 
+        printStatic(invoiceNo, InvoiceCopyType.ORIGINAL);
 
         resetInvoice();
         addItemRowIfNeeded();
@@ -1209,6 +1214,11 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
     public static void printStatic(int invoiceNo, InvoiceCopyType copyType) {
+
+        if (invoiceNo <= 0) {
+            new Alert(Alert.AlertType.ERROR, "Invalid invoice number").showAndWait();
+            return;
+        }
 
         Invoice invoice = InvoiceDAO.findInvoiceByNo(invoiceNo);
         List<InvoiceItem> items = InvoiceDAO.findItemsByInvoiceNo(invoiceNo);
@@ -1608,7 +1618,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
 
     private int persistInvoice(Invoice invoice, List<InvoiceItem> items) {
-        try {
+
             int invoiceNo = InvoiceDAO.saveInvoice(invoice, items);
 
             isDraft = false;
@@ -1621,10 +1631,6 @@ public class InvoiceController implements Refreshable,Navigable {
             printBtn.setDisable(false); // Enable the standalone print button
 
             return invoiceNo;
-        } catch (Exception e) {
-            error("Database Error: Could not save invoice. " + e.getMessage());
-            return -1;
-        }
     }
 
 

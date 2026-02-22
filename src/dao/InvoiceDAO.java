@@ -29,14 +29,21 @@ public final class InvoiceDAO {
 
             con.setAutoCommit(false);
 
-            int invoiceNo = getNextInvoiceNo(con);
-            invoice.setInvoiceNo(invoiceNo);
+            try {
 
-            int invoiceId = insertInvoice(con, invoice);
-            insertInvoiceItems(con, invoiceId, items);
+                int invoiceNo = getNextInvoiceNo(con);
+                invoice.setInvoiceNo(invoiceNo);
 
-            con.commit();
-            return invoiceNo;
+                int invoiceId = insertInvoice(con, invoice);
+                insertInvoiceItems(con, invoiceId, items);
+
+                con.commit();
+                return invoiceNo;
+
+            } catch (Exception e) {
+                con.rollback();
+                throw e;
+            }
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to save invoice", e);
@@ -97,7 +104,9 @@ public final class InvoiceDAO {
         round_off,
         grand_total
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
 """;
 
 
@@ -212,7 +221,7 @@ public final class InvoiceDAO {
             try (ResultSet rs = ps.executeQuery()) {
 
                 if (!rs.next()) {
-                    throw new RuntimeException("Invoice not found: " + invoiceNo);
+                    return null;
                 }
 
                 Invoice inv = new Invoice();
