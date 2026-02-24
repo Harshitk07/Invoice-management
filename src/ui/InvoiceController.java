@@ -16,6 +16,7 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.print.*;
+import javafx.scene.CacheHint;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -215,6 +216,9 @@ public class InvoiceController implements Refreshable,Navigable {
 
     @FXML
     public void initialize() {
+
+        pageRoot.setCache(true);
+        pageRoot.setCacheHint(CacheHint.SPEED);
 
         // In initialize, listen to both scroll AND layout changes
         root.vvalueProperty().addListener((obs, o, n) -> updateStickyBySummaryVisibility());

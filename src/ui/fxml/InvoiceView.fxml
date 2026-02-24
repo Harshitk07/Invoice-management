@@ -3,90 +3,85 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
 
+<?import javafx.scene.shape.Rectangle?>
 <VBox prefHeight="950.0" prefWidth="1300.0"
       xmlns="http://javafx.com/javafx/21"
       xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="ui.InvoiceController"
-      style="-fx-background-color: #F8FAFC;">
+      style="-fx-background-color: #F3F4F6;">
 
     <!-- ================= HEADER ================= -->
 
-    <HBox minHeight="76"
-          alignment="CENTER_LEFT"
-          spacing="20"
-          style="
-    -fx-background-color: linear-gradient(to bottom, #F8FAFC, #F1F5F9);
-    -fx-padding: 10 36;
-    -fx-border-color: #E2E8F0;
-    -fx-border-width: 0 0 1 0;
-    -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 10, 0, 0, 3);
-">
+    <VBox style="-fx-background-color: #FFFFFF;">
 
-    <VBox spacing="2">
+        <VBox maxWidth="1240"
+              alignment="CENTER_LEFT"
+              spacing="0"
+              style="-fx-padding: 0 40;"
+              VBox.vgrow="NEVER">
 
-            <Label text="Create New Invoice"
-                   style="
-    -fx-font-size: 24px;
-    -fx-font-weight: 900;
-    -fx-text-fill: #020617;
-"
-            />
+            <HBox minHeight="90"
+                  alignment="CENTER_LEFT"
+                  spacing="20"
+                  style="-fx-padding: 18 0;">
 
-            <Label fx:id="companyDescriptionLabel"
-                   style="
-    -fx-font-size: 13px;
-    -fx-font-weight: 600;
-    -fx-text-fill: #475569;
-"
-            />
+                <!-- Title -->
+                <VBox spacing="4">
+                    <Label text="Create New Invoice"
+                           style="-fx-font-size: 26px;
+                              -fx-font-weight: 800;
+                              -fx-text-fill: #0F172A;"/>
+                    <Label fx:id="companyDescriptionLabel"
+                           style="-fx-font-size: 13px;
+                              -fx-font-weight: 600;
+                              -fx-text-fill: #64748B;"/>
+                </VBox>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <!-- Company Badge -->
+                <HBox spacing="16"
+                      alignment="CENTER"
+                      style="-fx-background-color: #F8FAFC;
+                         -fx-padding: 14 22;
+                         -fx-background-radius: 14;
+                         -fx-border-color: #E2E8F0;
+                         -fx-border-radius: 14;">
+
+                    <VBox alignment="CENTER_RIGHT" spacing="2">
+                        <Label fx:id="companyNameLabel"
+                               style="-fx-font-size: 14px;
+                                  -fx-font-weight: 800;
+                                  -fx-text-fill: #0F172A;"/>
+                        <Label fx:id="companyGstLabel"
+                               style="-fx-font-size: 12px;
+                                  -fx-font-weight: 600;
+                                  -fx-text-fill: #2563EB;"/>
+                    </VBox>
+
+                    <StackPane prefWidth="42" prefHeight="42"
+                               style="-fx-background-color: linear-gradient(to bottom, #2563EB, #1D4ED8);
+                                  -fx-background-radius: 21;">
+                        <Label fx:id="companyAvatarLabel"
+                               style="-fx-text-fill: white;
+                                  -fx-font-size: 17px;
+                                  -fx-font-weight: 900;"/>
+                    </StackPane>
+
+                </HBox>
+
+            </HBox>
+
         </VBox>
+    </VBox>
 
-        <Region HBox.hgrow="ALWAYS"/>
-
-        <HBox spacing="14"
-              alignment="CENTER"
-              style="
-    -fx-background-color: #E0E7FF;
-    -fx-padding: 10 18;
-    -fx-background-radius: 40;
-">
-
-
-        <VBox alignment="CENTER_RIGHT">
-                <Label fx:id="companyNameLabel"
-                       style="-fx-font-size: 14px;
-                              -fx-font-weight: 700;
-                              -fx-text-fill: #1E293B;"/>
-                <Label fx:id="companyGstLabel"
-                       style="-fx-font-size: 11px;
-                              -fx-font-weight: 700;
-                              -fx-text-fill: #2563EB;"/>
-                <Label fx:id="companyContactLabel"
-                       visible="false"
-                       managed="false"/>
-
-            </VBox>
-            <StackPane prefWidth="36" prefHeight="36"
-                       style="
-    -fx-background-color: #2563EB;
-    -fx-background-radius: 18;
-">
-                <Label fx:id="companyAvatarLabel"
-                       style="
-        -fx-text-fill: white;
-        -fx-font-size: 16px;
-        -fx-font-weight: 900;
-    "/>
-            </StackPane>
-
-
-        </HBox>
-
-    </HBox>
+    <Rectangle height="3"
+               VBox.vgrow="NEVER"
+               width="1240"
+               style="-fx-fill: linear-gradient(to right, #2563EB, #1D4ED8);" />
 
 
 
@@ -117,8 +112,8 @@
                           style="
          -fx-padding:28 32 140 32;
 -fx-font-size:14px;
--fx-background-color: transparent;
--fx-effect: dropshadow(gaussian, rgba(2,6,23,0.06), 14, 0, 0, 4);
+-fx-background-color: #F1F5F9;
+-fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
       ">
 
                         <!-- ===== BILLING & SHIPPING ===== -->
@@ -133,7 +128,7 @@
                                   style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
@@ -182,18 +177,11 @@
                                 <!-- MATCHED HEIGHT -->
 
                                 <TextArea fx:id="buyerAddressArea"
-
                                           prefHeight="110"
                                           wrapText="true"
                                           promptText="Billing address"
                                           style="-fx-control-inner-background: #F8FAFC;
-                                         -fx-background-radius: 10;
-                                            -fx-font-size : 14px;">
-                                    <font>
-                                        <Font size="15"/>
-                                    </font>
-
-                                </TextArea>
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
 
                                 <HBox spacing="10">
                                     <TextField fx:id="buyerGstField"
@@ -202,14 +190,14 @@
                                                HBox.hgrow="ALWAYS"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px;-fx-text-fill: #586679;"/>
                                     <TextField fx:id="buyerStateField"
                                                promptText="State"
                                                prefHeight="38"
                                                prefWidth="160"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
 
                                     <TextField fx:id="buyerStateCodeField"
                                                promptText="Code"
@@ -217,7 +205,8 @@
                                                prefWidth="70"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px;
+                                        -fx-text-fill: #586679;"/>
                                 </HBox>
 
                             </VBox>
@@ -231,7 +220,7 @@
                                   style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
@@ -252,7 +241,7 @@
                                     <CheckBox fx:id="sameAsBuyerCheck"
                                               onAction="#onSameAsBuyerToggle"
                                               text="Same as billing"
-                                              style="-fx-text-fill: #64748B;
+                                              style="-fx-text-fill: #586679;
                                              -fx-font-size: 12px;"/>
                                 </HBox>
 
@@ -263,7 +252,7 @@
                                            prefHeight="40"
                                            style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
 
 
                                 <!-- MATCHED HEIGHT -->
@@ -273,16 +262,7 @@
                                           wrapText="true"
                                           promptText="Shipping address"
                                           style="-fx-control-inner-background: #F8FAFC;
-                                         -fx-background-radius: 10;
-                                            -fx-font-size : 14px;">
-                                    <font>
-
-                                        <Font size="15"/>
-                                    </font>
-
-                                </TextArea>
-
-
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
 
                                 <HBox spacing="10">
                                     <TextField fx:id="consigneeGstField"
@@ -291,21 +271,21 @@
                                                HBox.hgrow="ALWAYS"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
                                     <TextField fx:id="consigneeStateField"
                                                promptText="State"
                                                prefHeight="38"
                                                prefWidth="160"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size :14px;"/>
+                                            -fx-font-size :14px; -fx-text-fill: #586679;"/>
                                     <TextField fx:id="consigneeStateCodeField"
                                                promptText="Code"
                                                prefHeight="38"
                                                prefWidth="70"
                                                style="-fx-control-inner-background: #F8FAFC;
                                          -fx-background-radius: 10;
-                                            -fx-font-size : 14px;"/>
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"/>
                                 </HBox>
                             </VBox>
                         </HBox>
@@ -319,12 +299,12 @@
                               style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
         -fx-padding: 22;
-        -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.06), 14, 0, 0, 4);
+        -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
     ">
 
                             <VBox spacing="6" HBox.hgrow="ALWAYS">
@@ -385,7 +365,7 @@
                                        style="
     -fx-font-size: 13px;
     -fx-font-weight: 900;
-    -fx-text-fill: #0F172A;
+    -fx-text-fill: #586679;
     "
                                 />
                                 <DatePicker fx:id="poDatePicker"
@@ -411,10 +391,10 @@
                               style="
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 12;
-    -fx-border-color: #E5E7EB;
+    -fx-border-color: #DCE3EA;
     -fx-border-radius: 12;
     -fx-padding: 22;
-    -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.06), 14, 0, 0, 4);
+    -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
 ">
 
                             <!-- HEADER -->
@@ -434,7 +414,7 @@
                                            HBox.hgrow="ALWAYS"
                                            style="-fx-control-inner-background: #F8FAFC;
                           -fx-background-radius: 10;
-                          -fx-font-size: 14px;"/>
+                          -fx-font-size: 14px; -fx-text-fill: #586679;"/>
 
                                 <DatePicker fx:id="dcDatePicker"
                                             prefHeight="40"
@@ -446,6 +426,7 @@
         -fx-border-color: #CBD5E1;
         -fx-border-radius: 10;
         -fx-font-size: 14px;
+        -fx-text-fill: #586679;
     "/>
 
                                 <TextField fx:id="dispatchThroughField"
@@ -454,7 +435,7 @@
                                            HBox.hgrow="ALWAYS"
                                            style="-fx-control-inner-background: #F8FAFC;
                           -fx-background-radius: 10;
-                          -fx-font-size: 14px;"/>
+                          -fx-font-size: 14px; -fx-text-fill: #586679;"/>
 
                                 <TextField fx:id="ewayBillField"
                                            promptText="E-Way Bill No"
@@ -462,7 +443,7 @@
                                            HBox.hgrow="ALWAYS"
                                            style="-fx-control-inner-background: #F8FAFC;
                           -fx-background-radius: 10;
-                          -fx-font-size: 14px;"/>
+                          -fx-font-size: 14px; -fx-text-fill: #586679;"/>
 
                             </HBox>
                         </VBox>
@@ -473,7 +454,7 @@
                               style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
@@ -489,7 +470,7 @@
         -fx-background-radius:8;
         -fx-border-color:#E5E7EB;
         -fx-border-radius:8;
-        -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.06), 14, 0, 0, 4);
+        -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
       ">
                                 <Label text="ITEM TABLE"
                                        style="
@@ -632,12 +613,12 @@
                                   style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
         -fx-padding: 22;
-        -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.06), 14, 0, 0, 4);
+        -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
     ">
 
                                 <Label text="NOTES"
@@ -650,13 +631,8 @@
                                 <TextArea promptText="Additional notes / payment terms"
                                           prefHeight="120"
                                           wrapText="true"
-                                          style="
-    -fx-font-size: 14px;
-    -fx-font-weight: 900;
-    -fx-text-fill: #0F172A;
-    -fx-control-inner-background: #F8FAFC;
-    -fx-background-radius: 10;
-"
+                                          style="-fx-control-inner-background: #F8FAFC; -x-font-weight: 900;
+                                            -fx-font-size : 14px; -fx-text-fill: #586679;"
                                 />
                             </VBox>
                             <!-- TOTAL SUMMARY -->
@@ -667,12 +643,12 @@
                                   style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-background-insets: 0;
         -fx-border-insets: 0;
         -fx-padding: 22;
-         -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.12), 22, 0, 0, 6);
+        -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
 ">
 
                                 <Label text="INVOICE SUMMARY"
@@ -731,7 +707,7 @@
                                            GridPane.columnIndex="0"
                                            visible="false"
                                            managed="false"
-                                           style="-fx-text-fill:#64748B;"/>
+                                           style="-fx-text-fill: #586679;"/>
 
                                     <Label fx:id="roundOffValueLabel"
                                            GridPane.rowIndex="4"
@@ -800,10 +776,10 @@
               style="
         -fx-background-color: #FFFFFF;
         -fx-background-radius: 12;
-        -fx-border-color: #E5E7EB;
+        -fx-border-color: #DCE3EA;
         -fx-border-radius: 12;
         -fx-padding: 22;
-         -fx-effect: dropshadow(gaussian, rgba(2,6,23,0.12), 22, 0, 0, 6);
+        -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
 ">
             <StackPane.margin>
                 <Insets right="45"/>
@@ -824,9 +800,9 @@
     <HBox minHeight="84"
           alignment="CENTER_RIGHT"
           spacing="18"
-          style="-fx-background-color: #FFFFFF;
+          style="-fx-background-color: #F9FAFB;
                  -fx-padding: 0 40;
-                 -fx-border-color: #E5E7EB;
+                 -fx-border-color: #DCE3EA;
                  -fx-border-width: 1 0 0 0;">
         <Button text="RESET"
                 onAction="#onResetInvoice"
@@ -876,7 +852,7 @@
     -fx-font-size: 15px;
     -fx-font-weight: 900;
     -fx-background-radius: 14;
-    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.45), 18, 0, 0, 6);
+    -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);
 "
         />
         <Region HBox.hgrow="ALWAYS"/>
