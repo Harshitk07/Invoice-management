@@ -60,6 +60,7 @@
                                style="-fx-font-size: 12px;
                                   -fx-font-weight: 600;
                                   -fx-text-fill: #2563EB;"/>
+                        <Label fx:id="companyContactLabel" visible="false" managed="false"/>
                     </VBox>
 
                     <StackPane prefWidth="42" prefHeight="42"

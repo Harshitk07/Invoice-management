@@ -162,6 +162,9 @@ public class DashboardController {
                 );
             }
 
+            controllerCache.put(fxml, controller);
+            viewCache.put(fxml, view);
+
             injectContext(controller);
 
             backStack.clear();
@@ -472,6 +475,11 @@ public class DashboardController {
 
         ViewState prev = backStack.peek();
 
+        Navigable prevCtrl = controllerCache.get(prev.fxml);
+        if (prevCtrl != null) {
+            prevCtrl.onNavigateTo();
+        }
+
         animateTransition(prev.view, false);
         restoreScroll(prev.fxml, prev.view);
 
@@ -620,6 +628,21 @@ public class DashboardController {
         autoBackupStatusLabel.setText(
                 "🛡 " + systemStatusProvider.fetchStatus().lastBackupText()
         );
+    }
+
+    public void refreshHomeSystemStatus() {
+
+        // If current view is Home
+        if (!backStack.isEmpty()
+                && backStack.peek().fxml.equals("HomeView.fxml")) {
+
+            Navigable controller =
+                    controllerCache.get("HomeView.fxml");
+
+            if (controller instanceof HomeController home) {
+                home.refreshSystemStatus();
+            }
+        }
     }
 
 

@@ -75,7 +75,7 @@ public class HomeController implements Navigable{
     }
 
 
-    private void refreshSystemStatus() {
+    public void refreshSystemStatus() {
 
         SystemStatusSnapshot s =
                 dashboard.getSystemStatusProvider().fetchStatus();

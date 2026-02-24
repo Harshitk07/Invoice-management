@@ -1625,6 +1625,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
             int invoiceNo = InvoiceDAO.saveInvoice(invoice, items);
 
+            dashboard.refreshHomeSystemStatus();
             isDraft = false;
             enterFinalMode(invoiceNo);
             loadCompanyHeader(invoice);
