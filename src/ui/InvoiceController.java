@@ -340,6 +340,7 @@ public class InvoiceController implements Refreshable,Navigable {
         addHoverEffect(savePrintButton);
         addHoverEffect(saveButton);
         addHoverEffect(previewButton);
+        printBtn.setDisable(true);
         Platform.runLater(this::updateStickyBySummaryVisibility);
         stickyTotalBar.setVisible(false);
         stickyTotalBar.setOpacity(1);
@@ -981,19 +982,16 @@ public class InvoiceController implements Refreshable,Navigable {
             return;
         }
 
-
         Invoice invoice = buildInvoiceFromUI();
         List<InvoiceItem> items = new ArrayList<>(rows);
 
         int invoiceNo = persistInvoice(invoice, items);
+
         SettingsDAO.set("default_invoice_notes", notesArea.getText());
 
-        info("Invoice saved successfully. Invoice No: " + invoiceNo);
-        isDraft = false;
-        printBtn.setDisable(false);
+        info("Invoice saved. Invoice No: " + invoiceNo);
 
-        resetInvoice();
-        addItemRowIfNeeded();
+        enterFinalMode(invoiceNo);   // 🔑 LOCK PAGE
     }
 
 
@@ -1219,6 +1217,7 @@ public class InvoiceController implements Refreshable,Navigable {
         loadDefaultNotes();
 
         isResetting = false;  // 🔓 END RESET
+        enterDraftMode();
     }
 
 
@@ -1445,15 +1444,51 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
     private void enterFinalMode(int invoiceNo) {
+
         isDraft = false;
-        table.setEditable(false); // Lock the table
+
+        invoiceNoField.setText(String.valueOf(invoiceNo));
+
+        // Lock ALL inputs
+        pageRoot.setDisable(true);
+
+        // But allow print + reset
+        printBtn.setDisable(false);
         saveButton.setDisable(true);
         savePrintButton.setDisable(true);
-        invoiceDatePicker.setDisable(true);
+        previewButton.setDisable(true);
+
+        pageRoot.setDisable(false); // enable root again
+        lockInvoiceFields();
+    }
+
+    private void lockInvoiceFields() {
+
         customerBox.setDisable(true);
-        gstCol.setEditable(false);
-        invoiceNoField.setText(String.valueOf(invoiceNo));
-        printBtn.setDisable(false);
+        buyerAddressArea.setDisable(true);
+        buyerGstField.setDisable(true);
+        buyerStateField.setDisable(true);
+        buyerStateCodeField.setDisable(true);
+
+        consigneeNameField.setDisable(true);
+        consigneeAddressArea.setDisable(true);
+        consigneeGstField.setDisable(true);
+        consigneeStateField.setDisable(true);
+        consigneeStateCodeField.setDisable(true);
+
+        table.setEditable(false);
+        table.setDisable(true);
+
+        poNoField.setDisable(true);
+        poDatePicker.setDisable(true);
+        dcNoField.setDisable(true);
+        dcDatePicker.setDisable(true);
+        dispatchThroughField.setDisable(true);
+        ewayBillField.setDisable(true);
+        notesArea.setDisable(true);
+
+        roundOffCheck.setDisable(true);
+        roundOffField.setDisable(true);
     }
 
     @FXML

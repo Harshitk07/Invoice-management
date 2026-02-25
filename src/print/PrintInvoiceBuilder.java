@@ -688,22 +688,14 @@ public class PrintInvoiceBuilder {
         signature.setMaxWidth(Double.MAX_VALUE);
         signature.setAlignment(Pos.CENTER_RIGHT);
 
-        String footerText = inv.getNotes();
-
-        if (footerText == null || footerText.isBlank()) {
-            footerText = """
-    Certified that the particulars given above are true and correct.
-    Goods once supplied will not be taken back.
-    Subject to Visakhapatnam jurisdiction.
-    """;
-        }
+        String footerText = safe(inv.getNotes());
 
         Label notesLabel = new Label(footerText);
         notesLabel.setFont(FONT);
         notesLabel.setWrapText(true);
         notesLabel.setMaxWidth(Double.MAX_VALUE);
 
-        VBox left = new VBox(6,
+        VBox left = new VBox(14,
                 notesLabel,
                 new Region(),
                 signature
