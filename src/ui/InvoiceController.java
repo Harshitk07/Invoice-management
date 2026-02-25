@@ -212,6 +212,9 @@ public class InvoiceController implements Refreshable,Navigable {
     }
 
     @FXML private TextArea notesArea;
+    @FXML private Label notesCounterLabel;
+    private static final int MAX_NOTES_CHARS = 250;
+    private static final int MAX_NOTES_LINES = 3;
 
     /* ================= INIT ================= */
 
@@ -337,6 +340,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
         loadDraftCompanyHeader();
         loadDefaultNotes();
+        setupNotesLimiter();
         addHoverEffect(savePrintButton);
         addHoverEffect(saveButton);
         addHoverEffect(previewButton);
@@ -377,6 +381,49 @@ public class InvoiceController implements Refreshable,Navigable {
         } else {
             notesArea.clear();   // first time ever → blank
         }
+    }
+
+    private void setupNotesLimiter() {
+
+        notesArea.textProperty().addListener((obs, oldText, newText) -> {
+
+            if (newText == null) return;
+
+            // ----- Enforce Line Limit -----
+            String[] lines = newText.split("\\R");
+
+            if (lines.length > MAX_NOTES_LINES) {
+                newText = String.join("\n",
+                        lines[0],
+                        lines[1],
+                        lines[2]
+                );
+            }
+
+            // ----- Enforce Character Limit -----
+            if (newText.length() > MAX_NOTES_CHARS) {
+                newText = newText.substring(0, MAX_NOTES_CHARS);
+            }
+
+            if (!newText.equals(notesArea.getText())) {
+                notesArea.setText(newText);
+                notesArea.positionCaret(newText.length());
+            }
+
+            // ----- Update Counter -----
+            notesCounterLabel.setText(newText.length() + "/" + MAX_NOTES_CHARS);
+
+            // Optional: turn red near limit
+            if (newText.length() > 230) {
+                notesCounterLabel.setStyle("-fx-text-fill:#DC2626; -fx-font-size:11px;");
+            } else {
+                notesCounterLabel.setStyle("-fx-text-fill:#6B7280; -fx-font-size:11px;");
+            }
+        });
+
+        // Initialize counter
+        String current = notesArea.getText() == null ? "" : notesArea.getText();
+        notesCounterLabel.setText(current.length() + "/" + MAX_NOTES_CHARS);
     }
 
 

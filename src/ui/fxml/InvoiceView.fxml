@@ -635,6 +635,12 @@
                                           wrapText="true"
                                           style="-fx-control-inner-background: #F8FAFC;
                  -fx-font-size : 14px; -fx-text-fill: #586679;"/>
+
+                                <HBox alignment="CENTER_RIGHT">
+                                    <Label fx:id="notesCounterLabel"
+                                           text="0/250"
+                                           style="-fx-text-fill:#6B7280; -fx-font-size:11px;" />
+                                </HBox>
                             </VBox>
                             <!-- TOTAL SUMMARY -->
 
