@@ -51,6 +51,7 @@ public class Invoice {
     private LocalDate dcDate;
     private String dispatchThrough;
     private String ewayBillNo;
+    private String notes;
 
     /* ================= TOTALS (FINAL) ================= */
 
@@ -67,8 +68,9 @@ public class Invoice {
     private List<InvoiceItem> items;
 
     /* =====================================================
-       CANONICAL GETTERS USED BY DAO (DO NOT RENAME)
+      NOTES
        ===================================================== */
+
 
     public double getTaxableAmount() {
         return taxableAmount;
@@ -347,4 +349,11 @@ public class Invoice {
                 : "";
     }
 
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
 }

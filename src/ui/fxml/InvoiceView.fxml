@@ -629,12 +629,12 @@
     -fx-text-fill: #0F172A;
     "
                                 />
-                                <TextArea promptText="Additional notes / payment terms"
+                                <TextArea fx:id="notesArea"
+                                          promptText="Additional notes / payment terms"
                                           prefHeight="120"
                                           wrapText="true"
-                                          style="-fx-control-inner-background: #F8FAFC; -x-font-weight: 900;
-                                            -fx-font-size : 14px; -fx-text-fill: #586679;"
-                                />
+                                          style="-fx-control-inner-background: #F8FAFC;
+                 -fx-font-size : 14px; -fx-text-fill: #586679;"/>
                             </VBox>
                             <!-- TOTAL SUMMARY -->
 

@@ -95,6 +95,7 @@ public final class InvoiceDAO {
         dc_no, dc_date,
         dispatch_through,
         eway_bill_no,
+        notes,
 
         /* ===== TOTALS ===== */
         taxable_subtotal,
@@ -105,7 +106,7 @@ public final class InvoiceDAO {
         grand_total
     )
     VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?
                     )
 """;
 
@@ -149,7 +150,7 @@ public final class InvoiceDAO {
 
             ps.setString(i++, inv.getDispatchThrough());
             ps.setString(i++, inv.getEwayBillNo());
-
+            ps.setString(i++, inv.getNotes());
             ps.setDouble(i++, inv.getTaxableAmount());
             ps.setDouble(i++, inv.getCgstTotal());
             ps.setDouble(i++, inv.getSgstTotal());
@@ -269,7 +270,7 @@ public final class InvoiceDAO {
 
                 inv.setDispatchThrough(rs.getString("dispatch_through"));
                 inv.setEwayBillNo(rs.getString("eway_bill_no"));
-
+                inv.setNotes(rs.getString("notes"));
                 inv.setTaxableAmount(rs.getDouble("taxable_subtotal"));
                 inv.setCgstTotal(rs.getDouble("cgst"));
                 inv.setSgstTotal(rs.getDouble("sgst"));

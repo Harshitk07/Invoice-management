@@ -218,7 +218,7 @@ public class PrintInvoiceBuilder {
         box.getChildren().add(buildMetaAndParty(inv));
         box.getChildren().add(buildTable(items));
         box.getChildren().add(buildTotals(inv));
-        box.getChildren().add(buildFooter());
+        box.getChildren().add(buildFooter(inv));
 
         return box;
     }
@@ -667,7 +667,7 @@ public class PrintInvoiceBuilder {
 
     /* ================= FOOTER ================= */
 
-    private Node buildFooter() {
+    private Node buildFooter(Invoice inv) {
 
         GridPane g = new GridPane();
         g.setMinWidth(CONTENT_WIDTH);
@@ -688,10 +688,23 @@ public class PrintInvoiceBuilder {
         signature.setMaxWidth(Double.MAX_VALUE);
         signature.setAlignment(Pos.CENTER_RIGHT);
 
+        String footerText = inv.getNotes();
+
+        if (footerText == null || footerText.isBlank()) {
+            footerText = """
+    Certified that the particulars given above are true and correct.
+    Goods once supplied will not be taken back.
+    Subject to Visakhapatnam jurisdiction.
+    """;
+        }
+
+        Label notesLabel = new Label(footerText);
+        notesLabel.setFont(FONT);
+        notesLabel.setWrapText(true);
+        notesLabel.setMaxWidth(Double.MAX_VALUE);
+
         VBox left = new VBox(6,
-                text("Certified that the particulars given above are true and correct."),
-                text("Goods once supplied will not be taken back."),
-                text("Subject to Visakhapatnam jurisdiction."),
+                notesLabel,
                 new Region(),
                 signature
         );

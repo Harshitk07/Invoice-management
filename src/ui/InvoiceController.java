@@ -4,6 +4,7 @@ import context.CompanyContext;
 import dao.CustomerDAO;
 import dao.InvoiceDAO;
 import dao.ItemDAO;
+import dao.SettingsDAO;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -210,7 +211,7 @@ public class InvoiceController implements Refreshable,Navigable {
         );
     }
 
-
+    @FXML private TextArea notesArea;
 
     /* ================= INIT ================= */
 
@@ -335,6 +336,7 @@ public class InvoiceController implements Refreshable,Navigable {
         });
 
         loadDraftCompanyHeader();
+        loadDefaultNotes();
         addHoverEffect(savePrintButton);
         addHoverEffect(saveButton);
         addHoverEffect(previewButton);
@@ -363,6 +365,16 @@ public class InvoiceController implements Refreshable,Navigable {
             );
         } else {
             companyAvatarLabel.setText("?");
+        }
+    }
+
+    private void loadDefaultNotes() {
+        String defaultNote = SettingsDAO.get("default_invoice_notes");
+
+        if (defaultNote != null) {
+            notesArea.setText(defaultNote);
+        } else {
+            notesArea.clear();   // first time ever → blank
         }
     }
 
@@ -974,7 +986,7 @@ public class InvoiceController implements Refreshable,Navigable {
         List<InvoiceItem> items = new ArrayList<>(rows);
 
         int invoiceNo = persistInvoice(invoice, items);
-
+        SettingsDAO.set("default_invoice_notes", notesArea.getText());
 
         info("Invoice saved successfully. Invoice No: " + invoiceNo);
         isDraft = false;
@@ -1061,6 +1073,7 @@ public class InvoiceController implements Refreshable,Navigable {
         int invoiceNo;
         try {
             invoiceNo = persistInvoice(invoice, items);
+            SettingsDAO.set("default_invoice_notes", notesArea.getText());
         } catch (Exception e) {
             error("Save failed. Invoice not printed.");
             return;
@@ -1203,6 +1216,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
         recalc();
         updateCustomerLock();
+        loadDefaultNotes();
 
         isResetting = false;  // 🔓 END RESET
     }
@@ -1367,6 +1381,7 @@ public class InvoiceController implements Refreshable,Navigable {
         inv.setDcDate(dcDatePicker.getValue());
         inv.setDispatchThrough(dispatchThroughField.getText());
         inv.setEwayBillNo(ewayBillField.getText());
+        inv.setNotes(notesArea.getText());
 
         // -------- Buyer --------
         Customer buyer = customerBox.getValue();
@@ -1617,6 +1632,7 @@ public class InvoiceController implements Refreshable,Navigable {
         recalc();
         previousCustomer = null;
         updateCustomerLock();
+        loadDefaultNotes();
         table.getSelectionModel().clearSelection();
     }
 

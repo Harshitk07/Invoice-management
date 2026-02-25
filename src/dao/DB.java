@@ -34,11 +34,13 @@ public final class DB {
     }
 
     public static Connection connect() throws SQLException {
-        Connection connection = DriverManager.getConnection(URL);
-        try (Statement st = connection.createStatement()) {
-            st.execute("PRAGMA foreign_keys = ON");
-            st.execute("PRAGMA busy_timeout = 5000");
-            st.execute("PRAGMA journal_mode = WAL");
+        if (connection == null || connection.isClosed()) {
+            connection = DriverManager.getConnection(URL);
+            try (Statement st = connection.createStatement()) {
+                st.execute("PRAGMA foreign_keys = ON");
+                st.execute("PRAGMA busy_timeout = 5000");
+                st.execute("PRAGMA journal_mode = WAL");
+            }
         }
         return connection;
     }
@@ -159,6 +161,12 @@ public final class DB {
 
             st.execute("CREATE INDEX IF NOT EXISTS idx_invoice_no ON invoices(invoice_no)");
             st.execute("CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id)");
+            st.execute("""
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+""");
 
             migrate(st, "ALTER TABLE invoices ADD COLUMN terms_of_payment TEXT");
             migrate(st, "ALTER TABLE invoices ADD COLUMN dispatch_through TEXT");
@@ -172,6 +180,7 @@ public final class DB {
             migrate(st, "ALTER TABLE invoices ADD COLUMN seller_bank_name TEXT");
             migrate(st, "ALTER TABLE invoices ADD COLUMN seller_account_no TEXT");
             migrate(st, "ALTER TABLE invoices ADD COLUMN seller_ifsc TEXT");
+            migrate(st, "ALTER TABLE invoices ADD COLUMN notes TEXT");
 
         }
     }
