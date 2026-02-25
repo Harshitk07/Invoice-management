@@ -43,6 +43,23 @@ public class RestoreDatabaseController implements Navigable{
         // optional cleanup
     }
 
+    private static final String RESTORE_BASE = """
+    -fx-background-color:#dc2626;
+    -fx-text-fill:white;
+    -fx-font-weight:bold;
+    -fx-background-radius:8;
+    -fx-padding:6 18;
+""";
+
+    private static final String RESTORE_HOVER = """
+    -fx-background-color:#b91c1c;
+    -fx-text-fill:white;
+    -fx-font-weight:bold;
+    -fx-background-radius:8;
+    -fx-padding:6 18;
+    -fx-effect:dropshadow(gaussian, rgba(0,0,0,0.25),8,0.2,0,2);
+""";
+
     private static final Path BACKUP_ROOT =
             Paths.get(System.getProperty("user.dir")).resolve("backups");
 
@@ -68,6 +85,16 @@ public class RestoreDatabaseController implements Navigable{
         if (!CapabilityContext.get().has(Capability.SYSTEM_RESTORE)) {
             restoreButton.setDisable(true);
         }
+
+        restoreButton.setStyle(RESTORE_BASE);
+
+        restoreButton.setOnMouseEntered(e ->
+                restoreButton.setStyle(RESTORE_HOVER)
+        );
+
+        restoreButton.setOnMouseExited(e ->
+                restoreButton.setStyle(RESTORE_BASE)
+        );
 
 
         backupList.setCellFactory(lv -> new ListCell<>() {

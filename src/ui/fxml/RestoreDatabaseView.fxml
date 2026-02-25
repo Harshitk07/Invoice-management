@@ -60,23 +60,7 @@
               style="-fx-padding:20;">
             <Button fx:id="restoreButton"
                     text="Restore"
-                    onAction="#restore"
-                    onMouseEntered="#dangerHoverIn"
-                    onMouseExited="#restoreBaseStyle"
-                    userData="
-            -fx-background-color:#dc2626;
-            -fx-text-fill:white;
-            -fx-font-weight:bold;
-            -fx-background-radius:8;
-            -fx-padding:6 18;
-        "
-                    style="
-            -fx-background-color:#dc2626;
-            -fx-text-fill:white;
-            -fx-font-weight:bold;
-            -fx-background-radius:8;
-            -fx-padding:6 18;
-        "/>
+                    onAction="#restore"/>
 
 
             <Button text="Cancel"
