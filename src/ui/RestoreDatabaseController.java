@@ -477,46 +477,6 @@ public class RestoreDatabaseController implements Navigable{
         }
     }
 
-//    private void showUndoSnackbar(Path trashedFile) {
-//
-//        HBox snackbar = new HBox(15);
-//        snackbar.setStyle("""
-//        -fx-background-color:#1f2937;
-//        -fx-padding:12 20;
-//        -fx-background-radius:8;
-//    """);
-//
-//        Label msg = new Label("Backup deleted");
-//        msg.setStyle("-fx-text-fill:white;");
-//
-//        Button undo = new Button("Undo");
-//        undo.setStyle("""
-//        -fx-background-color:transparent;
-//        -fx-text-fill:#60a5fa;
-//    """);
-//
-//        snackbar.getChildren().addAll(msg, undo);
-//        snackbar.setAlignment(Pos.CENTER_LEFT);
-//
-//        dashboard.getRootPane().getChildren().add(snackbar);
-//
-//        undo.setOnAction(e -> {
-//            DatabaseBackupService.restoreFromTrash(trashedFile);
-//            dashboard.getRootPane().getChildren().remove(snackbar);
-//            refreshAfterBackup();
-//        });
-//
-//        new Thread(() -> {
-//            try {
-//                Thread.sleep(5000);
-//            } catch (InterruptedException ignored) {}
-//
-//            Platform.runLater(() -> {
-//                dashboard.getRootPane().getChildren().remove(snackbar);
-//                DatabaseBackupService.permanentlyDelete(trashedFile);
-//            });
-//        }).start();
-//    }
 
     @FXML
     private void restore() {

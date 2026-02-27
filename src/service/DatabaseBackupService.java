@@ -31,7 +31,6 @@ public final class DatabaseBackupService {
     private static final Path BACKUP_DIR = BASE_DIR.resolve("backups");
     private static final Path AUTO_DIR   = BACKUP_DIR.resolve("auto");
     private static final Path MANUAL_DIR = BACKUP_DIR.resolve("manual");
-    private static final Path TRASH_DIR = BACKUP_DIR.resolve("trash");
 
     private static final int MIN_AUTO_BACKUPS = 1;
     private static final int MIN_MANUAL_BACKUPS = 1; // user controlled
@@ -345,129 +344,17 @@ public final class DatabaseBackupService {
                 }
             }
 
-            ensureDirs();
+            // ===== PERMANENT DELETE =====
+            Files.deleteIfExists(file);
 
-            Path trashFile = TRASH_DIR.resolve(file.getFileName());
-            Path trashMeta = TRASH_DIR.resolve(file.getFileName() + ".meta");
-
-// Avoid overwrite in trash
-            if (Files.exists(trashFile)) {
-                String renamed = TS.format(LocalDateTime.now()) + "_" + file.getFileName();
-                trashFile = TRASH_DIR.resolve(renamed);
-                trashMeta = TRASH_DIR.resolve(renamed + ".meta");
-            }
-
-// Move DB
-            Files.move(file, trashFile, StandardCopyOption.REPLACE_EXISTING);
-
-// Move metadata if exists
             Path meta = file.resolveSibling(file.getFileName() + ".meta");
-            if (Files.exists(meta)) {
-                Files.move(meta, trashMeta, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Files.deleteIfExists(meta);
 
             return new DeleteResult(true, "Backup deleted.");
 
         } catch (Exception e) {
             return new DeleteResult(false, "Deletion failed: " + e.getMessage());
         }
-    }
-
-    //========= TRASH =========//
-
-    public static boolean restoreFromTrash(Path trashedFile) {
-        try {
-
-            if (!trashedFile.startsWith(TRASH_DIR)) return false;
-
-            BackupType type = getTypeFromName(trashedFile);
-
-            Path originalDir = getDirForType(type);
-
-            Files.createDirectories(originalDir);
-
-            Path restoredFile = originalDir.resolve(trashedFile.getFileName());
-            Path restoredMeta = originalDir.resolve(trashedFile.getFileName() + ".meta");
-
-            Files.move(trashedFile, restoredFile, StandardCopyOption.REPLACE_EXISTING);
-
-            Path meta = trashedFile.resolveSibling(trashedFile.getFileName() + ".meta");
-            if (Files.exists(meta)) {
-                Files.move(meta, restoredMeta, StandardCopyOption.REPLACE_EXISTING);
-            }
-
-            return true;
-
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public static boolean permanentlyDelete(Path trashedFile) {
-        try {
-            if (!trashedFile.startsWith(TRASH_DIR)) return false;
-
-            Files.deleteIfExists(trashedFile);
-
-            Path meta = trashedFile.resolveSibling(trashedFile.getFileName() + ".meta");
-            Files.deleteIfExists(meta);
-
-            return true;
-
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public static List<Path> listTrash() {
-        try {
-            ensureDirs();
-            return Files.list(TRASH_DIR)
-                    .filter(p -> p.toString().endsWith(".db"))
-                    .sorted((a,b) -> {
-                        try {
-                            return Files.getLastModifiedTime(b)
-                                    .compareTo(Files.getLastModifiedTime(a));
-                        } catch (Exception e) {
-                            return 0;
-                        }
-                    })
-                    .toList();
-        } catch (Exception e) {
-            return List.of();
-        }
-    }
-
-    private static BackupType getTypeFromName(Path file) {
-
-        String name = file.getFileName().toString().toLowerCase();
-
-        if (name.contains("pre_restore")) {
-            return BackupType.BEFORE_RESTORE;
-        }
-
-        if (name.contains("invoice_") && name.contains("_")) {
-            // Manual backups contain custom label
-            if (name.contains("_system_") || name.matches("invoice_\\d{4}-.*")) {
-                return BackupType.AUTO;
-            }
-            return BackupType.MANUAL;
-        }
-
-        throw new IllegalStateException("Cannot determine backup type from name: " + name);
-    }
-
-    public static void purgeTrashOlderThanDays(int days) {
-        try {
-            Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
-
-            for (Path p : listTrash()) {
-                if (Files.getLastModifiedTime(p).toInstant().isBefore(cutoff)) {
-                    permanentlyDelete(p);
-                }
-            }
-
-        } catch (Exception ignored) {}
     }
 
     /* ========UTILITY========== */
@@ -682,6 +569,5 @@ public final class DatabaseBackupService {
     private static void ensureDirs() throws Exception {
         Files.createDirectories(AUTO_DIR);
         Files.createDirectories(MANUAL_DIR);
-        Files.createDirectories(TRASH_DIR);
     }
 }
