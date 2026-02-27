@@ -2,6 +2,7 @@ package service;
 
 import dao.DB;
 import model.BackupHealth;
+import model.BackupType;
 
 import java.nio.file.*;
 import java.nio.file.attribute.FileTime;
@@ -30,8 +31,12 @@ public final class DatabaseBackupService {
     private static final Path BACKUP_DIR = BASE_DIR.resolve("backups");
     private static final Path AUTO_DIR   = BACKUP_DIR.resolve("auto");
     private static final Path MANUAL_DIR = BACKUP_DIR.resolve("manual");
+    private static final Path TRASH_DIR = BACKUP_DIR.resolve("trash");
 
-    private static final int AUTO_RETENTION_DAYS = 30;
+    private static final int MIN_AUTO_BACKUPS = 1;
+    private static final int MIN_MANUAL_BACKUPS = 1; // user controlled
+    private static final int MIN_BEFORE_RESTORE = 1;
+
 
     /* ================= PUBLIC API ================= */
 
@@ -62,7 +67,7 @@ public final class DatabaseBackupService {
             if (Files.exists(todayFile)) return;
 
             backupTo(todayFile, "AUTO", "SYSTEM");
-            enforceRetention(AUTO_RETENTION_DAYS);
+            enforceRetention(BackupType.AUTO, 7);
 
         } catch (Exception e) {
             e.printStackTrace(); // log only, never crash app
@@ -119,7 +124,6 @@ public final class DatabaseBackupService {
         Files.move(temp, dbPath, StandardCopyOption.ATOMIC_MOVE);
 
         // Step 5: Hard restart (required)
-        System.exit(0);
     }
 
     /* ================= CORE ================= */
@@ -161,32 +165,58 @@ public final class DatabaseBackupService {
 
     /* ================= RETENTION ================= */
 
-    private static void enforceRetention(int days) throws Exception {
+    public static int enforceRetention(BackupType type, int keepLast) {
 
-        if (!Files.exists(AUTO_DIR)) return;
+        try {
+            Path dir = switch (type) {
+                case AUTO -> AUTO_DIR;
+                case MANUAL -> MANUAL_DIR;
+                case BEFORE_RESTORE -> BACKUP_DIR.resolve("before_restore");
+            };
 
-        Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+            if (!Files.exists(dir)) return 0;
 
-        Files.list(AUTO_DIR)
-                .filter(p -> p.getFileName().toString().endsWith(".db"))
-                .forEach(p -> {
-                    try {
-                        FileTime t = Files.getLastModifiedTime(p);
-                        if (t.toInstant().isBefore(cutoff)) {
-                            Files.deleteIfExists(p);
-                            Files.deleteIfExists(p.resolveSibling(p.getFileName() + ".meta"));
+            List<Path> backups =
+                    Files.list(dir)
+                            .filter(p -> p.toString().endsWith(".db"))
+                            .sorted((a, b) -> {
+                                try {
+                                    return Files.getLastModifiedTime(b)
+                                            .compareTo(Files.getLastModifiedTime(a));
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            })
+                            .toList();
 
-                        }
-                    } catch (Exception ignored) {}
-                });
+            int deleted = 0;
+
+            for (int i = keepLast; i < backups.size(); i++) {
+                Path db = backups.get(i);
+                Files.deleteIfExists(db);
+                Files.deleteIfExists(db.resolveSibling(db.getFileName() + ".meta"));
+                deleted++;
+            }
+
+            return deleted;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Retention failed for " + type, e);
+        }
     }
 
     public static List<Path> listAllBackups() {
         try {
             return Files.walk(BACKUP_DIR, 2)
                     .filter(p -> p.toString().endsWith(".db"))
-                    .sorted((a, b) -> b.getFileName().toString()
-                            .compareTo(a.getFileName().toString()))
+                    .sorted((a, b) -> {
+                        try {
+                            return Files.getLastModifiedTime(b)
+                                    .compareTo(Files.getLastModifiedTime(a));
+                        } catch (Exception e) {
+                            return 0;
+                        }
+                    })
                     .toList();
         } catch (Exception e) {
             throw new RuntimeException("Failed to list backups", e);
@@ -229,7 +259,226 @@ public final class DatabaseBackupService {
         }
     }
 
+    public static boolean canDelete(Path file) {
+
+        try {
+            if (!file.toAbsolutePath().startsWith(BACKUP_DIR)) return false;
+            if (!Files.exists(file)) return false;
+            if (file.toAbsolutePath().equals(getCurrentDbPath())) return false;
+
+            BackupType type = getType(file);
+
+            long count = Files.list(getDirForType(type))
+                    .filter(p -> p.toString().endsWith(".db"))
+                    .count();
+
+            int minAllowed = switch (type) {
+                case AUTO -> MIN_AUTO_BACKUPS;
+                case MANUAL -> MIN_MANUAL_BACKUPS;
+                case BEFORE_RESTORE -> MIN_BEFORE_RESTORE;
+            };
+
+            if (count <= minAllowed) return false;
+
+            if (getHealth(file) == BackupHealth.HEALTHY) {
+                long healthyCount = listAllBackups().stream()
+                        .filter(p -> getHealth(p) == BackupHealth.HEALTHY)
+                        .count();
+
+                if (healthyCount <= 1) return false;
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public record DeleteResult(boolean success, String message) {}
+
+    public static DeleteResult deleteBackup(Path file) {
+
+        try {
+
+            if (!file.toAbsolutePath().startsWith(BACKUP_DIR.toAbsolutePath())) {
+                return new DeleteResult(false, "Invalid backup location.");
+            }
+
+            if (!file.toString().endsWith(".db")) {
+                return new DeleteResult(false, "Invalid backup file.");
+            }
+
+            if (!Files.exists(file)) {
+                return new DeleteResult(false, "Backup file does not exist.");
+            }
+
+            if (file.toAbsolutePath().equals(getCurrentDbPath())) {
+                return new DeleteResult(false, "Cannot delete active database.");
+            }
+
+            BackupType type = getType(file);
+
+            long count = Files.list(getDirForType(type))
+                    .filter(p -> p.toString().endsWith(".db"))
+                    .count();
+
+            int minAllowed = switch (type) {
+                case AUTO -> MIN_AUTO_BACKUPS;
+                case MANUAL -> MIN_MANUAL_BACKUPS;
+                case BEFORE_RESTORE -> MIN_BEFORE_RESTORE;
+            };
+
+            if (count <= minAllowed) {
+                return new DeleteResult(false,
+                        "Minimum required backups reached.");
+            }
+
+            if (getHealth(file) == BackupHealth.HEALTHY) {
+                long healthyCount = listAllBackups().stream()
+                        .filter(p -> getHealth(p) == BackupHealth.HEALTHY)
+                        .count();
+
+                if (healthyCount <= 1) {
+                    return new DeleteResult(false,
+                            "Cannot delete the last healthy backup.");
+                }
+            }
+
+            ensureDirs();
+
+            Path trashFile = TRASH_DIR.resolve(file.getFileName());
+            Path trashMeta = TRASH_DIR.resolve(file.getFileName() + ".meta");
+
+// Avoid overwrite in trash
+            if (Files.exists(trashFile)) {
+                String renamed = TS.format(LocalDateTime.now()) + "_" + file.getFileName();
+                trashFile = TRASH_DIR.resolve(renamed);
+                trashMeta = TRASH_DIR.resolve(renamed + ".meta");
+            }
+
+// Move DB
+            Files.move(file, trashFile, StandardCopyOption.REPLACE_EXISTING);
+
+// Move metadata if exists
+            Path meta = file.resolveSibling(file.getFileName() + ".meta");
+            if (Files.exists(meta)) {
+                Files.move(meta, trashMeta, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return new DeleteResult(true, "Backup deleted.");
+
+        } catch (Exception e) {
+            return new DeleteResult(false, "Deletion failed: " + e.getMessage());
+        }
+    }
+
+    //========= TRASH =========//
+
+    public static boolean restoreFromTrash(Path trashedFile) {
+        try {
+
+            if (!trashedFile.startsWith(TRASH_DIR)) return false;
+
+            BackupType type = getTypeFromName(trashedFile);
+
+            Path originalDir = getDirForType(type);
+
+            Files.createDirectories(originalDir);
+
+            Path restoredFile = originalDir.resolve(trashedFile.getFileName());
+            Path restoredMeta = originalDir.resolve(trashedFile.getFileName() + ".meta");
+
+            Files.move(trashedFile, restoredFile, StandardCopyOption.REPLACE_EXISTING);
+
+            Path meta = trashedFile.resolveSibling(trashedFile.getFileName() + ".meta");
+            if (Files.exists(meta)) {
+                Files.move(meta, restoredMeta, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean permanentlyDelete(Path trashedFile) {
+        try {
+            if (!trashedFile.startsWith(TRASH_DIR)) return false;
+
+            Files.deleteIfExists(trashedFile);
+
+            Path meta = trashedFile.resolveSibling(trashedFile.getFileName() + ".meta");
+            Files.deleteIfExists(meta);
+
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static List<Path> listTrash() {
+        try {
+            ensureDirs();
+            return Files.list(TRASH_DIR)
+                    .filter(p -> p.toString().endsWith(".db"))
+                    .sorted((a,b) -> {
+                        try {
+                            return Files.getLastModifiedTime(b)
+                                    .compareTo(Files.getLastModifiedTime(a));
+                        } catch (Exception e) {
+                            return 0;
+                        }
+                    })
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private static BackupType getTypeFromName(Path file) {
+
+        String name = file.getFileName().toString().toLowerCase();
+
+        if (name.contains("pre_restore")) {
+            return BackupType.BEFORE_RESTORE;
+        }
+
+        if (name.contains("invoice_") && name.contains("_")) {
+            // Manual backups contain custom label
+            if (name.contains("_system_") || name.matches("invoice_\\d{4}-.*")) {
+                return BackupType.AUTO;
+            }
+            return BackupType.MANUAL;
+        }
+
+        throw new IllegalStateException("Cannot determine backup type from name: " + name);
+    }
+
+    public static void purgeTrashOlderThanDays(int days) {
+        try {
+            Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
+
+            for (Path p : listTrash()) {
+                if (Files.getLastModifiedTime(p).toInstant().isBefore(cutoff)) {
+                    permanentlyDelete(p);
+                }
+            }
+
+        } catch (Exception ignored) {}
+    }
+
     /* ========UTILITY========== */
+
+    private static Path getDirForType(BackupType type) {
+        return switch (type) {
+            case AUTO -> AUTO_DIR;
+            case MANUAL -> MANUAL_DIR;
+            case BEFORE_RESTORE -> BACKUP_DIR.resolve("before_restore");
+        };
+    }
 
     public static String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
@@ -254,7 +503,8 @@ public final class DatabaseBackupService {
                 "pre_restore_" + TS.format(LocalDateTime.now()) + ".db"
         );
 
-        backupTo(target, "AUTO", "SYSTEM"); // pre-restore safety
+        backupTo(target, "BEFORE_RESTORE", "SYSTEM"); // pre-restore safety
+        enforceRetention(BackupType.BEFORE_RESTORE, 3);
         return target;
     }
 
@@ -321,9 +571,10 @@ public final class DatabaseBackupService {
 
             for (int i = keepLast; i < manuals.size(); i++) {
                 Path db = manuals.get(i);
-                Files.deleteIfExists(db);
-                Files.deleteIfExists(db.resolveSibling(db.getFileName() + ".meta"));
-                deleted++;
+                DeleteResult result = deleteBackup(db);
+                if (result.success()) {
+                    deleted++;
+                }
             }
 
             return deleted;
@@ -414,7 +665,16 @@ public final class DatabaseBackupService {
         }
     }
 
+    public static BackupType getType(Path file) {
+        String folder = file.getParent().getFileName().toString().toUpperCase();
 
+        return switch (folder) {
+            case "AUTO" -> BackupType.AUTO;
+            case "MANUAL" -> BackupType.MANUAL;
+            case "BEFORE_RESTORE" -> BackupType.BEFORE_RESTORE;
+            default -> throw new IllegalStateException("Unknown backup type: " + folder);
+        };
+    }
 
 
     /* ================= INIT ================= */
@@ -422,5 +682,6 @@ public final class DatabaseBackupService {
     private static void ensureDirs() throws Exception {
         Files.createDirectories(AUTO_DIR);
         Files.createDirectories(MANUAL_DIR);
+        Files.createDirectories(TRASH_DIR);
     }
 }

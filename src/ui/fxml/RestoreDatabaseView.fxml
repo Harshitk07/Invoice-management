@@ -40,12 +40,21 @@
                        -fx-background-radius:6;
                    "/>
 
-            <HBox spacing="10"
+            <HBox spacing="12"
                   alignment="CENTER_RIGHT"
-                  style="-fx-padding:0 20 10 20;">
-                <Label text="Sort by:" style="-fx-text-fill:#475569;"/>
+                  style="-fx-padding:0 0 10 0;">
 
-                <ComboBox fx:id="sortBox" prefWidth="180"/>
+                <Label text="Filter:"
+                       style="-fx-text-fill:#475569;"/>
+
+                <ComboBox fx:id="filterBox"
+                          prefWidth="150"/>
+
+                <Label text="Sort:"
+                       style="-fx-text-fill:#475569;"/>
+
+                <ComboBox fx:id="sortBox"
+                          prefWidth="150"/>
             </HBox>
 
             <ListView fx:id="backupList"
