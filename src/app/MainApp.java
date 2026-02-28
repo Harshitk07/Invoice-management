@@ -11,10 +11,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import service.DatabaseBackupService;
-import service.DefaultSystemStatusProvider;
-import service.StaticCompanyProfileProvider;
-import service.StaticUserContextProvider;
+import service.*;
 import ui.DashboardController;
 import ui.interfaces.SystemStatusProvider;
 
@@ -26,6 +23,9 @@ public class MainApp extends Application {
     public void start(Stage stage) throws Exception {
 
         // ================= BOOTSTRAP (NON-NEGOTIABLE) =================
+        // 1️⃣ Migrate old data (if exists)
+//        MigrationUtil.migrateIfNeeded();
+//
         DB.init();
         DatabaseBackupService.autoBackupIfNeeded();
 

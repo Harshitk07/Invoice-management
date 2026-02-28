@@ -1,20 +1,11 @@
 package dao;
 
+import app.AppPaths;
+
 import java.nio.file.*;
 import java.sql.*;
 
 public final class DB {
-
-    /* ================= PATH ================= */
-
-    private static final Path BASE_DIR =
-            Paths.get(System.getProperty("user.dir"));
-
-    private static final Path DB_DIR = BASE_DIR.resolve("data");
-    private static final Path DB_PATH = DB_DIR.resolve("shree_uma_invoice.db");
-
-    private static final String URL =
-            "jdbc:sqlite:" + DB_PATH.toAbsolutePath();
 
     private static Connection connection;
 
@@ -22,11 +13,10 @@ public final class DB {
 
     /* ================= INIT ================= */
 
-    // CALL ONCE from MainApp.start()
     public static void init() {
         try {
-            Files.createDirectories(DB_DIR);
-            connect();          // ensures DB file exists
+            AppPaths.ensureDirectories();
+            connect();
             initSchema();
         } catch (Exception e) {
             throw new RuntimeException("DB initialization failed", e);
@@ -34,14 +24,22 @@ public final class DB {
     }
 
     public static Connection connect() throws SQLException {
+
         if (connection == null || connection.isClosed()) {
-            connection = DriverManager.getConnection(URL);
+
+            Path dbPath = AppPaths.getDatabasePath();
+
+            String url = "jdbc:sqlite:" + dbPath.toAbsolutePath();
+
+            connection = DriverManager.getConnection(url);
+
             try (Statement st = connection.createStatement()) {
                 st.execute("PRAGMA foreign_keys = ON");
                 st.execute("PRAGMA busy_timeout = 5000");
                 st.execute("PRAGMA journal_mode = WAL");
             }
         }
+
         return connection;
     }
 
@@ -59,7 +57,7 @@ public final class DB {
     /* ================= FOR BACKUP SERVICE ================= */
 
     public static Path getDatabasePath() {
-        return DB_PATH;
+        return AppPaths.getDatabasePath();
     }
 
     /* ================= SCHEMA ================= */
@@ -195,8 +193,10 @@ public final class DB {
 
     public static long getDatabaseSizeBytes() {
         try {
-            return Files.exists(DB_PATH)
-                    ? Files.size(DB_PATH)
+            Path dbPath = AppPaths.getDatabasePath();
+
+            return Files.exists(dbPath)
+                    ? Files.size(dbPath)
                     : 0L;
         } catch (Exception e) {
             return 0L; // dashboard-safe fallback

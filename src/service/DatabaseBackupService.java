@@ -1,5 +1,6 @@
 package service;
 
+import app.AppPaths;
 import dao.DB;
 import model.BackupHealth;
 import model.BackupType;
@@ -25,16 +26,20 @@ public final class DatabaseBackupService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
     // App root directory (NOT Documents)
-    private static final Path BASE_DIR =
-            Paths.get(System.getProperty("user.dir"));
+    private static final Path BACKUP_DIR =
+            AppPaths.getBackupDir();
 
-    private static final Path BACKUP_DIR = BASE_DIR.resolve("backups");
-    private static final Path AUTO_DIR   = BACKUP_DIR.resolve("auto");
-    private static final Path MANUAL_DIR = BACKUP_DIR.resolve("manual");
+    private static final Path AUTO_DIR =
+            BACKUP_DIR.resolve("auto");
+
+    private static final Path MANUAL_DIR =
+            BACKUP_DIR.resolve("manual");
 
     private static final int MIN_AUTO_BACKUPS = 1;
     private static final int MIN_MANUAL_BACKUPS = 1; // user controlled
     private static final int MIN_BEFORE_RESTORE = 1;
+    private static final int DOCS_BACKUP_LIMIT = 10;
+    private static final int CLOUD_BACKUP_LIMIT = 10;
 
 
     /* ================= PUBLIC API ================= */
@@ -159,6 +164,9 @@ public final class DatabaseBackupService {
                 target.resolveSibling(target.getFileName() + ".meta"),
                 meta.serialize()
         );
+
+        mirrorToDocuments(target);
+        mirrorToCloud(target);
     }
 
 
@@ -203,6 +211,40 @@ public final class DatabaseBackupService {
             throw new RuntimeException("Retention failed for " + type, e);
         }
     }
+
+    private static void enforceExternalRetention(Path dir, int keepLast) {
+
+        try {
+
+            if (!Files.exists(dir)) return;
+
+            List<Path> backups =
+                    Files.list(dir)
+                            .filter(p -> p.toString().endsWith(".db"))
+                            .sorted((a, b) -> {
+                                try {
+                                    return Files.getLastModifiedTime(b)
+                                            .compareTo(Files.getLastModifiedTime(a));
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            })
+                            .toList();
+
+            for (int i = keepLast; i < backups.size(); i++) {
+
+                Path db = backups.get(i);
+                Files.deleteIfExists(db);
+
+                Path meta = db.resolveSibling(db.getFileName() + ".meta");
+                Files.deleteIfExists(meta);
+            }
+
+        } catch (Exception e) {
+            System.out.println("External retention failed: " + e.getMessage());
+        }
+    }
+
 
     public static List<Path> listAllBackups() {
         try {
@@ -396,7 +438,7 @@ public final class DatabaseBackupService {
     }
 
     public static Path getCurrentDbPath() {
-        return Paths.get("shree_uma_invoice.db").toAbsolutePath();
+        return AppPaths.getDatabasePath();
     }
 
     public static BackupHealth getHealth(Path backup) {
@@ -563,10 +605,126 @@ public final class DatabaseBackupService {
         };
     }
 
+    // ====== DOCUMENT ===== //
+
+    private static Path getDocumentsBackupDir() {
+        return Paths.get(
+                System.getProperty("user.home"),
+                "Documents",
+                "ShreeUmaInvoice_Backups"
+        );
+    }
+
+    private static void mirrorToDocuments(Path backupFile) {
+
+        try {
+
+            Path docs = getDocumentsBackupDir();
+            Files.createDirectories(docs);
+
+            // ===== COPY DB FILE =====
+            Path target = docs.resolve(backupFile.getFileName());
+
+            Files.copy(
+                    backupFile,
+                    target,
+                    StandardCopyOption.REPLACE_EXISTING
+            );
+
+            // ===== COPY META FILE =====
+            Path metaSource = backupFile.resolveSibling(
+                    backupFile.getFileName() + ".meta"
+            );
+
+            if (Files.exists(metaSource)) {
+
+                Path metaTarget = docs.resolve(
+                        metaSource.getFileName()
+                );
+
+                Files.copy(
+                        metaSource,
+                        metaTarget,
+                        StandardCopyOption.REPLACE_EXISTING
+                );
+            }
+
+            enforceExternalRetention(docs, DOCS_BACKUP_LIMIT);
+
+        } catch (Exception e) {
+            System.out.println("Documents mirror failed: " + e.getMessage());
+        }
+    }
+
+    //======= CLOUD ========//
+
+    private static Path detectCloudFolder() {
+
+        String home = System.getProperty("user.home");
+
+        Path[] possible = new Path[] {
+                Paths.get(home, "OneDrive"),
+                Paths.get(home, "Google Drive"),
+                Paths.get(home, "Dropbox")
+        };
+
+        for (Path p : possible) {
+            if (Files.exists(p) && Files.isDirectory(p)) {
+                return p.resolve("ShreeUmaInvoice_Backups");
+            }
+        }
+
+        return null;
+    }
+
+    private static void mirrorToCloud(Path backupFile) {
+
+        try {
+
+            Path cloudRoot = detectCloudFolder();
+            if (cloudRoot == null) return;
+
+            Files.createDirectories(cloudRoot);
+
+            // ===== COPY DB FILE =====
+            Path target = cloudRoot.resolve(backupFile.getFileName());
+
+            Files.copy(
+                    backupFile,
+                    target,
+                    StandardCopyOption.REPLACE_EXISTING
+            );
+
+            // ===== COPY META FILE =====
+            Path metaSource = backupFile.resolveSibling(
+                    backupFile.getFileName() + ".meta"
+            );
+
+            if (Files.exists(metaSource)) {
+
+                Path metaTarget = cloudRoot.resolve(
+                        metaSource.getFileName()
+                );
+
+                Files.copy(
+                        metaSource,
+                        metaTarget,
+                        StandardCopyOption.REPLACE_EXISTING
+                );
+            }
+
+            enforceExternalRetention(cloudRoot, CLOUD_BACKUP_LIMIT);
+
+        } catch (Exception e) {
+            System.out.println("Cloud mirror failed: " + e.getMessage());
+        }
+    }
+
 
     /* ================= INIT ================= */
 
     private static void ensureDirs() throws Exception {
+        AppPaths.ensureDirectories();
         Files.createDirectories(AUTO_DIR);
         Files.createDirectories(MANUAL_DIR);
     }
