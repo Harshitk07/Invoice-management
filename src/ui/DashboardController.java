@@ -6,10 +6,12 @@ import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
@@ -34,6 +36,22 @@ public class DashboardController {
     @FXML private Label companyNameLabel;
     @FXML private Label userRoleLabel;
     @FXML private Label usernameLabel;
+
+    @FXML private VBox personalFlyout;
+    @FXML private Button personalBtn;
+    @FXML private Label personalArrow;
+
+    private boolean flyoutOpen = false;
+    private final double SIDEBAR_WIDTH = 240;
+    private final double FLYOUT_WIDTH = 220;
+
+    @FXML private HBox personalHoverZone;
+
+    private TranslateTransition flyoutAnimation;
+    private RotateTransition arrowAnimation;
+
+    private boolean mouseInsideZone = false;
+    private boolean mouseInsideFlyout = false;
 
 
     private void bindHeaderContext() {
@@ -97,8 +115,25 @@ public class DashboardController {
             "InvoiceView.fxml", "New Invoice",
             "InvoiceHistoryView.fxml", "Invoice History",
             "ItemMasterView.fxml", "Item Master",
-            "CustomerMaster.fxml", "Customer Master"
+            "CustomerMaster.fxml", "Customer Master",
+            "AddContractDialog.fxml", "Add Contract",
+            "AddPurchaseOrder.fxml", "Add Purchase Order",
+            "PurchaseOrderList.fxml","PO List",
+            "ContractList.fxml","Contract List"
     );
+
+    @FXML
+    private void flyoutHoverIn(MouseEvent e){
+        ((Button)e.getSource()).setStyle(
+                "-fx-background-color:#324851;" +
+                        "-fx-text-fill:white;" +
+                        "-fx-background-radius:10;" +
+                        "-fx-alignment:CENTER_LEFT;" +
+                        "-fx-padding:8 12;" +
+                        "-fx-font-size:12;" +
+                        "-fx-cursor:hand;"
+        );
+    }
 
 
     /* ================= FXML ================= */
@@ -143,6 +178,22 @@ public class DashboardController {
         setupLogoGlow();
         setupLogoHover();
         setupIdleDetection();
+        setupFlyoutBehavior();
+
+        Platform.runLater(() -> {
+            mainLayer.getScene().addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+
+                if (!flyoutOpen) return;
+
+                Node target = (Node) e.getTarget();
+
+                if (isInside(target, personalBtn)) return;
+                if (isInside(target, personalFlyout)) return;
+
+                closeFlyout();
+            });
+        });
+
 
         backButton.setOnAction(e -> goBack());
         updateBackButton();
@@ -151,7 +202,7 @@ public class DashboardController {
     private void loadRootView(String fxml) {
         try {
             FXMLLoader loader =
-                    new FXMLLoader(getClass().getResource("/ui/fxml/" + fxml));
+                    new FXMLLoader(getClass().getResource("fxml/" + fxml));
 
             Parent view = loader.load();
             Object raw = loader.getController();
@@ -249,8 +300,117 @@ public class DashboardController {
     }
 
 
+    // ================= FLYOUT ==================== //
+
+    private void setupFlyoutBehavior() {
+
+        personalFlyout.setTranslateX(-25);
+        personalFlyout.setVisible(false);
+        personalFlyout.setManaged(false);
+
+        personalBtn.setOnAction(e -> toggleFlyout());
+    }
+
+    private void toggleFlyout() {
+        if (flyoutOpen) {
+            closeFlyout();
+        } else {
+            openFlyout();
+        }
+    }
+
+    private GaussianBlur blurEffect = new GaussianBlur(0);
+    private DropShadow flyoutGlow;
+
+    private void openFlyout() {
+
+        if (flyoutOpen) return;
+        flyoutOpen = true;
+
+        // 1️⃣ Dynamically position relative to button
+        Bounds btnBounds = personalBtn.localToScene(personalBtn.getBoundsInLocal());
+        Bounds parentBounds = mainLayer.sceneToLocal(btnBounds);
+
+        personalFlyout.setLayoutX(parentBounds.getMaxX());
+        personalFlyout.setLayoutY(parentBounds.getMinY());
+
+        personalFlyout.setVisible(true);
+        personalFlyout.setManaged(true);
+        personalFlyout.setOpacity(1);
+
+        // 2️⃣ Glow
+        if (flyoutGlow == null) {
+            flyoutGlow = new DropShadow();
+            flyoutGlow.setRadius(35);
+            flyoutGlow.setSpread(0.15);
+            flyoutGlow.setColor(Color.rgb(59,130,246,0.25));
+        }
+        personalFlyout.setEffect(flyoutGlow);
+
+        // 3️⃣ Blur background
+        contentPane.setEffect(blurEffect);
+
+        Timeline blurIn = new Timeline(
+                new KeyFrame(Duration.millis(200),
+                        new KeyValue(blurEffect.radiusProperty(), 12))
+        );
+        blurIn.play();
+
+        // 4️⃣ Slide animation with spline
+        TranslateTransition slide = new TranslateTransition(Duration.millis(220), personalFlyout);
+        slide.setFromX(-25);
+        slide.setToX(0);
+        slide.setInterpolator(Interpolator.SPLINE(0.25, 0.8, 0.25, 1));
+        slide.play();
+
+        // 5️⃣ Arrow rotate
+        RotateTransition rotate = new RotateTransition(Duration.millis(200), personalArrow);
+        rotate.setToAngle(90);
+        rotate.setInterpolator(Interpolator.EASE_OUT);
+        rotate.play();
+    }
+
+    private void closeFlyout() {
+
+        if (!flyoutOpen) return;
+        flyoutOpen = false;
+
+        TranslateTransition slide = new TranslateTransition(Duration.millis(200), personalFlyout);
+        slide.setFromX(0);
+        slide.setToX(-25);
+        slide.setInterpolator(Interpolator.SPLINE(0.4, 0.0, 0.2, 1));
+
+        slide.setOnFinished(e -> {
+            personalFlyout.setVisible(false);
+            personalFlyout.setManaged(false);
+            personalFlyout.setEffect(null);
+        });
+
+        slide.play();
+
+        // Remove blur
+        Timeline blurOut = new Timeline(
+                new KeyFrame(Duration.millis(200),
+                        new KeyValue(blurEffect.radiusProperty(), 0))
+        );
+
+        blurOut.setOnFinished(e -> contentPane.setEffect(null));
+        blurOut.play();
+
+        // Arrow back
+        RotateTransition rotate = new RotateTransition(Duration.millis(200), personalArrow);
+        rotate.setToAngle(0);
+        rotate.play();
+    }
 
 
+    private boolean isInside(Node target, Node parent) {
+        while (target != null) {
+            if (target == parent) return true;
+            target = target.getParent();
+        }
+        return false;
+    }
 
 
 
@@ -286,6 +446,22 @@ public class DashboardController {
             return; // silent fail or optional alert
         }
         navigate("CustomerMaster.fxml", true);
+    }
+
+    public void openAddPurchaseOrder() {
+        navigate("AddPurchaseOrder.fxml", true);
+    }
+
+    public void openAddContract() {
+        navigate("AddContractDialog.fxml", true);
+    }
+
+    public void openContractList() {
+        navigate("ContractList.fxml", true);
+    }
+
+    public void openPurchaseOrderList() {
+        navigate("PurchaseOrderList.fxml", true);
     }
 
     @FXML
@@ -402,7 +578,7 @@ public class DashboardController {
             } else {
 
                 FXMLLoader loader =
-                        new FXMLLoader(getClass().getResource("/ui/fxml/" + fxml));
+                        new FXMLLoader(getClass().getResource("fxml/" + fxml));
 
                 view = loader.load();
                 Object rawController = loader.getController();
@@ -780,8 +956,6 @@ public class DashboardController {
         logoGlow.setRadius(36);
         logoGlow.setColor(Color.rgb(59, 130, 246, 0.35)); // calm default
     }
-
-
 
 
     /* ================= UTILS ================= */

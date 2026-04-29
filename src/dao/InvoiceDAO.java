@@ -21,21 +21,13 @@ public final class InvoiceDAO {
      */
     public static int saveInvoice(Invoice invoice, List<InvoiceItem> items) {
 
-        if (items == null || items.isEmpty()) {
-            throw new IllegalArgumentException("Invoice must contain at least one item");
-        }
-
         try (Connection con = DB.connect()) {
 
             con.setAutoCommit(false);
 
             try {
 
-                int invoiceNo = getNextInvoiceNo(con);
-                invoice.setInvoiceNo(invoiceNo);
-
-                int invoiceId = insertInvoice(con, invoice);
-                insertInvoiceItems(con, invoiceId, items);
+                int invoiceNo = saveInvoice(con, invoice, items);
 
                 con.commit();
                 return invoiceNo;
@@ -48,6 +40,34 @@ public final class InvoiceDAO {
         } catch (Exception e) {
             throw new RuntimeException("Failed to save invoice", e);
         }
+    }
+
+    public static int saveInvoice(
+            Connection con,
+            Invoice invoice,
+            List<InvoiceItem> items
+    ) throws Exception {
+
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Invoice must contain at least one item");
+        }
+
+        int invoiceNo = getNextInvoiceNo(con);
+        invoice.setInvoiceNo(invoiceNo);
+
+// 🔥 NEW LOGIC
+        String fy = getFinancialYear(invoice.getInvoiceDate());
+
+        Integer lastNo = getLastInvoiceNoForFY(con, fy);
+        int nextFyNo = (lastNo == null) ? 101 : lastNo + 1;
+
+        invoice.setFinancialYear(fy);
+        invoice.setFyInvoiceNo(nextFyNo);
+
+        int invoiceId = insertInvoice(con, invoice);
+        insertInvoiceItems(con, invoiceId, items);
+
+        return invoiceNo;
     }
 
 
@@ -66,48 +86,53 @@ public final class InvoiceDAO {
     private static int insertInvoice(Connection con, Invoice inv) throws SQLException {
 
         String sql = """
-    INSERT INTO invoices (
-        invoice_no,
-        invoice_date,
+INSERT INTO invoices (
+    invoice_no,
+    financial_year,
+    fy_invoice_no,
+    invoice_date,
 
-        /* ===== SELLER SNAPSHOT ===== */
-        seller_name,
-        seller_description,
-        seller_address,
-        seller_gst,
-        seller_phone,
-        seller_email,
-        seller_bank_name,
-        seller_account_no,
-        seller_ifsc,
+    /* ===== SELLER SNAPSHOT ===== */
+    seller_name,
+    seller_description,
+    seller_address,
+    seller_gst,
+    seller_phone,
+    seller_email,
+    seller_bank_name,
+    seller_account_no,
+    seller_ifsc,
 
-        /* ===== BUYER ===== */
-        buyer_name, buyer_address, buyer_gst,
-        buyer_state, buyer_state_code,
+    /* ===== BUYER ===== */
+    buyer_name, buyer_address, buyer_gst,
+    buyer_state, buyer_state_code,
 
-        /* ===== CONSIGNEE ===== */
-        consignee_name, consignee_address, consignee_gst,
-        consignee_state, consignee_state_code,
+    /* ===== CONSIGNEE ===== */
+    consignee_name, consignee_address, consignee_gst,
+    consignee_state, consignee_state_code,
 
-        /* ===== META ===== */
-        terms_of_payment,
-        po_no, po_date,
-        dc_no, dc_date,
-        dispatch_through,
-        eway_bill_no,
-        notes,
+    /* ===== META ===== */
+    terms_of_payment,
+    po_no, po_date,
+    dc_no, dc_date,
+    dispatch_through,
+    eway_bill_no,
+    notes,
 
-        /* ===== TOTALS ===== */
-        taxable_subtotal,
-        cgst,
-        sgst,
-        igst,
-        round_off,
-        grand_total
-    )
-    VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?
-                    )
+    po_id,
+    po_reference,
+
+    /* ===== TOTALS ===== */
+    taxable_subtotal,
+    cgst,
+    sgst,
+    igst,
+    round_off,
+    grand_total
+)
+VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
 """;
 
 
@@ -117,6 +142,8 @@ public final class InvoiceDAO {
             int i = 1;
 
             ps.setInt(i++, inv.getInvoiceNo());
+            ps.setString(i++, inv.getFinancialYear());
+            ps.setObject(i++, inv.getFyInvoiceNo());
             ps.setString(i++, inv.getInvoiceDate() != null ? inv.getInvoiceDate().toString() : null);
 
             // ===== SELLER =====
@@ -151,6 +178,15 @@ public final class InvoiceDAO {
             ps.setString(i++, inv.getDispatchThrough());
             ps.setString(i++, inv.getEwayBillNo());
             ps.setString(i++, inv.getNotes());
+
+            // ===== PO LINK =====
+            if (inv.getPoId() != null) {
+                ps.setLong(i++, inv.getPoId());
+            } else {
+                ps.setNull(i++, Types.INTEGER);
+            }
+
+            ps.setString(i++, inv.getPoReference());
             ps.setDouble(i++, inv.getTaxableAmount());
             ps.setDouble(i++, inv.getCgstTotal());
             ps.setDouble(i++, inv.getSgstTotal());
@@ -229,6 +265,15 @@ public final class InvoiceDAO {
 
                 inv.setInvoiceNo(rs.getInt("invoice_no"));
 
+                inv.setFinancialYear(rs.getString("financial_year"));
+
+                int fyNo = rs.getInt("fy_invoice_no");
+                if (rs.wasNull()) {
+                    inv.setFyInvoiceNo(null);
+                } else {
+                    inv.setFyInvoiceNo(fyNo);
+                }
+
                 inv._setInvoiceDateFromDB(
                         parseInvoiceDate(rs.getString("invoice_date"))
                 );
@@ -261,6 +306,13 @@ public final class InvoiceDAO {
                 inv.setPoDate(
                         parseInvoiceDate(rs.getString("po_date"))
                 );
+                // internal po
+                long poIdValue = rs.getLong("po_id");
+                if (!rs.wasNull()) {
+                    inv.setPoId(poIdValue);
+                }
+
+                inv.setPoReference(rs.getString("po_reference"));
 
                 inv.setDcNo(rs.getString("dc_no"));
                 inv.setDcDate(
@@ -345,7 +397,8 @@ public final class InvoiceDAO {
     public static List<Invoice> listInvoices() {
 
         String sql = """
-        SELECT invoice_no, invoice_date, buyer_name, grand_total
+        SELECT invoice_no, financial_year, fy_invoice_no,
+               invoice_date, buyer_name, grand_total
         FROM invoices
         ORDER BY invoice_no DESC
     """;
@@ -358,12 +411,25 @@ public final class InvoiceDAO {
 
             while (rs.next()) {
                 Invoice inv = new Invoice();
+
                 inv.setInvoiceNo(rs.getInt("invoice_no"));
+
+                inv.setFinancialYear(rs.getString("financial_year"));
+
+                int fyNo = rs.getInt("fy_invoice_no");
+                if (rs.wasNull()) {
+                    inv.setFyInvoiceNo(null);
+                } else {
+                    inv.setFyInvoiceNo(fyNo);
+                }
+
                 inv._setInvoiceDateFromDB(
                         parseInvoiceDate(rs.getString("invoice_date"))
                 );
+
                 inv.setBuyerName(rs.getString("buyer_name"));
                 inv.setGrandTotal(rs.getDouble("grand_total"));
+
                 list.add(inv);
             }
 
@@ -374,22 +440,36 @@ public final class InvoiceDAO {
         }
     }
 
+    private static String getFinancialYear(LocalDate date) {
+        int year = date.getYear();
+        int month = date.getMonthValue();
 
+        if (month >= 4) {
+            return year + "-" + String.valueOf(year + 1).substring(2);
+        } else {
+            return (year - 1) + "-" + String.valueOf(year).substring(2);
+        }
+    }
+
+    private static Integer getLastInvoiceNoForFY(Connection con, String fy) throws SQLException {
+
+        String sql = "SELECT MAX(fy_invoice_no) FROM invoices WHERE financial_year = ?";
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, fy);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int val = rs.getInt(1);
+                    return rs.wasNull() ? null : val;
+                }
+            }
+        }
+        return null;
+    }
 
 
     /* ================= UTIL ================= */
-
-    private static void rollbackQuietly(Connection con) {
-        try {
-            if (con != null) con.rollback();
-        } catch (Exception ignored) {}
-    }
-
-    private static void closeQuietly(Connection con) {
-        try {
-            if (con != null) con.close();
-        } catch (Exception ignored) {}
-    }
 
     private static LocalDate parseInvoiceDate(String value) {
 

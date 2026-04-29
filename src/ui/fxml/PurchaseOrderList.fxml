@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="20"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.PurchaseOrderListController"
+      style="-fx-padding:25;">
+
+    <Label text="Purchase Orders"
+           style="-fx-font-size:20; -fx-font-weight:bold;"/>
+
+    <TableView fx:id="poTable"
+               prefHeight="500">
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+        <columns>
+
+            <TableColumn fx:id="poNoCol" text="PO No"/>
+            <TableColumn fx:id="poDateCol" text="PO Date"/>
+            <TableColumn fx:id="deliveryDateCol" text="Delivery By"/>
+            <TableColumn fx:id="totalCol" text="Grand Total"/>
+            <TableColumn fx:id="statusCol" text="Status"/>
+
+        </columns>
+    </TableView>
+
+</VBox>

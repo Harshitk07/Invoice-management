@@ -192,7 +192,7 @@ public class PrintInvoiceBuilder {
         VBox right = new VBox(2,
                 bold("TAX INVOICE", 24),
                 copyLabel,
-                headerText("Invoice No: " + inv.getInvoiceNo()),
+                headerText("Invoice No: " + formatInvoice(inv)),
                 headerText("Invoice Date: " + df(inv.getInvoiceDate())),
                 headerText("Terms of Payment: " + safe(inv.getTermsOfPayment()))
 //                headerText()
@@ -849,7 +849,12 @@ public class PrintInvoiceBuilder {
         return overlay;
     }
 
-
+    private String formatInvoice(Invoice inv) {
+        if (inv.getFinancialYear() == null || inv.getFyInvoiceNo() == null) {
+            return String.valueOf(inv.getInvoiceNo());
+        }
+        return inv.getFinancialYear() + "/" + inv.getFyInvoiceNo();
+    }
 
 
 

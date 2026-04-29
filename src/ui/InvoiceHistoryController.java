@@ -17,6 +17,7 @@ public class InvoiceHistoryController implements Navigable {
     @FXML private TableView<Invoice> table;
     private DashboardController dashboard;
 
+    @FXML private TableColumn<Invoice, String> colFY;
     @FXML private TableColumn<Invoice, Integer> colNo;
     @FXML private TableColumn<Invoice, String> colDate;
     @FXML private TableColumn<Invoice, String> colBuyer;
@@ -26,8 +27,28 @@ public class InvoiceHistoryController implements Navigable {
     public void initialize() {
 
         // ---------- Column bindings (READ-ONLY) ----------
-        colNo.setCellValueFactory(c ->
-                new ReadOnlyObjectWrapper<>(c.getValue().getInvoiceNo()));
+
+        colFY.setCellValueFactory(c -> {
+            Invoice inv = c.getValue();
+
+            String fy = inv.getFinancialYear();
+
+            if (fy == null || fy.isBlank()) {
+                return new ReadOnlyStringWrapper("-"); // old invoices
+            }
+
+            return new ReadOnlyStringWrapper(fy);
+        });
+
+        colNo.setCellValueFactory(c -> {
+            Invoice inv = c.getValue();
+
+            Integer no = (inv.getFyInvoiceNo() != null)
+                    ? inv.getFyInvoiceNo()
+                    : inv.getInvoiceNo(); // fallback
+
+            return new ReadOnlyObjectWrapper<>(no);
+        });
 
         colDate.setCellValueFactory(c ->
                 new ReadOnlyStringWrapper(c.getValue().getInvoiceDateFormatted()));

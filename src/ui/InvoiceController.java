@@ -1,10 +1,7 @@
 package ui;
 
 import context.CompanyContext;
-import dao.CustomerDAO;
-import dao.InvoiceDAO;
-import dao.ItemDAO;
-import dao.SettingsDAO;
+import dao.*;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -34,6 +31,7 @@ import model.*;
 import print.PrintInvoiceBuilder;
 import ui.interfaces.Navigable;
 import ui.interfaces.Refreshable;
+import service.ConvertToInvoiceFromPOService;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -215,6 +213,11 @@ public class InvoiceController implements Refreshable,Navigable {
     @FXML private Label notesCounterLabel;
     private static final int MAX_NOTES_CHARS = 250;
     private static final int MAX_NOTES_LINES = 3;
+
+
+
+    private final ConvertToInvoiceFromPOService poConvertService =
+            new ConvertToInvoiceFromPOService();
 
     /* ================= INIT ================= */
 
@@ -1032,13 +1035,34 @@ public class InvoiceController implements Refreshable,Navigable {
         Invoice invoice = buildInvoiceFromUI();
         List<InvoiceItem> items = new ArrayList<>(rows);
 
+// 🔥 SOFT VALIDATION (PO AMOUNT)
+        if (invoice.getPoId() != null) {
+
+            try {
+                if (poConvertService.isInvoiceExceedingPO(
+                        invoice.getPoId(),
+                        invoice.getGrandTotal()
+                )) {
+                    info("Warning: Invoice exceeds PO total amount");
+                }
+
+                if (poConvertService.isAnyItemExceedingPOQty(invoice)) {
+                    info("Warning: One or more items exceed remaining PO quantity");
+                }
+
+            } catch (Exception e) {
+                error("PO validation failed");
+                return;
+            }
+        }
+
         int invoiceNo = persistInvoice(invoice, items);
 
         SettingsDAO.set("default_invoice_notes", notesArea.getText());
 
         info("Invoice saved. Invoice No: " + invoiceNo);
 
-        enterFinalMode(invoiceNo);   // 🔑 LOCK PAGE
+        enterFinalMode(invoice);   // 🔑 LOCK PAGE
     }
 
 
@@ -1114,6 +1138,30 @@ public class InvoiceController implements Refreshable,Navigable {
 
         Invoice invoice = buildInvoiceFromUI();
         List<InvoiceItem> items = new ArrayList<>(rows);
+
+// 🔥 SOFT VALIDATION (PO LINKED)
+        if (invoice.getPoId() != null) {
+
+            try {
+
+                // 1️⃣ Total amount validation
+                if (poConvertService.isInvoiceExceedingPO(
+                        invoice.getPoId(),
+                        invoice.getGrandTotal()
+                )) {
+                    info("Warning: Invoice exceeds PO total amount");
+                }
+
+                // 2️⃣ Quantity validation
+                if (poConvertService.isAnyItemExceedingPOQty(invoice)) {
+                    info("Warning: One or more items exceed remaining PO quantity");
+                }
+
+            } catch (Exception e) {
+                error("PO validation failed");
+                return;
+            }
+        }
 
         int invoiceNo;
         try {
@@ -1429,6 +1477,27 @@ public class InvoiceController implements Refreshable,Navigable {
         inv.setEwayBillNo(ewayBillField.getText());
         inv.setNotes(notesArea.getText());
 
+        // 🔥 LINK PO (if exists)
+        String poText = poNoField.getText();
+
+        if (poText != null && !poText.isBlank()) {
+
+            try {
+
+                PurchaseOrder po =
+                        new PurchaseOrderDAO().findByPoNo(poText.trim());
+
+                if (po != null) {
+                    inv.setPoId(po.getId());              // 🔑 CRITICAL
+                    inv.setPoReference(po.getPoNo());     // 🔑 For display
+                }
+
+            } catch (Exception e) {
+                // Do not crash invoice creation
+                // Validation will catch issues separately
+            }
+        }
+
         // -------- Buyer --------
         Customer buyer = customerBox.getValue();
         if (buyer != null) {
@@ -1490,11 +1559,11 @@ public class InvoiceController implements Refreshable,Navigable {
         invoiceNoField.setText("AUTO");
     }
 
-    private void enterFinalMode(int invoiceNo) {
+    private void enterFinalMode(Invoice invoice) {
 
         isDraft = false;
 
-        invoiceNoField.setText(String.valueOf(invoiceNo));
+        invoiceNoField.setText(formatInvoiceDisplay(invoice));
 
         // Lock ALL inputs
         pageRoot.setDisable(true);
@@ -1725,7 +1794,7 @@ public class InvoiceController implements Refreshable,Navigable {
 
             dashboard.refreshHomeSystemStatus();
             isDraft = false;
-            enterFinalMode(invoiceNo);
+        enterFinalMode(invoice);
             loadCompanyHeader(invoice);
 
             // Disable the Save buttons so they can't double-click
@@ -1838,6 +1907,41 @@ public class InvoiceController implements Refreshable,Navigable {
                 scrollBounds.contains(nodeBounds.getMaxX(), nodeBounds.getMaxY());
     }
 
+    // =================== PO ============= //
+
+    public void loadFromPurchaseOrder(String poNo) {
+
+        try {
+
+            Invoice draft = poConvertService.prepareInvoiceFromPO(poNo);
+
+            // 🔗 Link PO
+            this.poNoField.setText(draft.getPoReference());
+            this.poNoField.setDisable(true);
+
+            // 🔥 IMPORTANT
+            draftSnapshot = null; // reset seller snapshot
+
+            // Buyer
+            buyerAddressArea.setText(draft.getBuyerAddress());
+            buyerStateField.setText("");
+            buyerStateCodeField.setText("");
+
+            // Items
+            rows.clear();
+
+            for (InvoiceItem item : draft.getItems()) {
+                rows.add(item);
+            }
+
+            addItemRowIfNeeded();
+            recalc();
+
+        } catch (Exception e) {
+            error("Failed to load PO: " + e.getMessage());
+        }
+    }
+
     /* ================= UTILS ================= */
 
     private void validateBeforeSave() {
@@ -1898,6 +2002,16 @@ public class InvoiceController implements Refreshable,Navigable {
         consigneeStateField.clear();
         consigneeStateCodeField.clear();
     }
+
+    private String formatInvoiceDisplay(Invoice inv) {
+
+        if (inv.getFinancialYear() == null || inv.getFyInvoiceNo() == null) {
+            return String.valueOf(inv.getInvoiceNo());
+        }
+
+        return inv.getFinancialYear() + "/" + inv.getFyInvoiceNo();
+    }
+
 
 
     private String fmt(double v) {

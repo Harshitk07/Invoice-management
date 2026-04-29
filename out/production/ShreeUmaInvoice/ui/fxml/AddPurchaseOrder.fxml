@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="18"
+      xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.AddPurchaseOrderController"
+      prefWidth="1000"
+      style="-fx-padding:20; -fx-background-color:white;">
+
+    <Label text="Create Purchase Order"
+           style="-fx-font-size:20px; -fx-font-weight:bold;" />
+
+    <!-- HEADER -->
+    <GridPane hgap="20" vgap="14">
+
+        <columnConstraints>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="30"/>
+            <ColumnConstraints percentWidth="20"/>
+            <ColumnConstraints percentWidth="30"/>
+        </columnConstraints>
+
+        <Label text="PO No" GridPane.rowIndex="0"/>
+        <TextField fx:id="poNoField"
+                   GridPane.columnIndex="1"
+                   GridPane.rowIndex="0"/>
+
+        <Label text="PO Date"
+               GridPane.columnIndex="2"
+               GridPane.rowIndex="0"/>
+        <DatePicker fx:id="poDatePicker"
+                    GridPane.columnIndex="3"
+                    GridPane.rowIndex="0"/>
+
+        <Label text="Delivery By Date"
+               GridPane.rowIndex="1"/>
+        <DatePicker fx:id="deliveryByDatePicker"
+                    GridPane.columnIndex="1"
+                    GridPane.rowIndex="1"/>
+
+        <Label text="Contract (Optional)"
+               GridPane.columnIndex="2"
+               GridPane.rowIndex="1"/>
+        <ComboBox fx:id="contractBox"
+                  GridPane.columnIndex="3"
+                  GridPane.rowIndex="1"/>
+
+    </GridPane>
+
+    <!-- ITEMS -->
+    <TableView fx:id="itemTable"
+               editable="true"
+               prefHeight="350">
+
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+
+        <columns>
+
+            <TableColumn fx:id="itemNameCol" text="Item"/>
+            <TableColumn fx:id="hsnCol" text="HSN" editable="false"/>
+            <TableColumn fx:id="unitCol" text="Unit" editable="false"/>
+            <TableColumn fx:id="qtyCol" text="Qty"/>
+            <TableColumn fx:id="rateCol" text="Rate"/>
+            <TableColumn fx:id="gstCol" text="GST %"/>
+            <TableColumn fx:id="amountCol" text="Amount" editable="false"/>
+
+        </columns>
+    </TableView>
+
+    <!-- TOTALS -->
+    <HBox spacing="40" alignment="CENTER_RIGHT">
+
+        <VBox alignment="CENTER_RIGHT">
+            <Label text="Subtotal"/>
+            <Label fx:id="subtotalLabel" style="-fx-font-weight:bold;"/>
+        </VBox>
+
+        <VBox alignment="CENTER_RIGHT">
+            <Label text="GST"/>
+            <Label fx:id="gstLabel" style="-fx-font-weight:bold;"/>
+        </VBox>
+
+        <VBox alignment="CENTER_RIGHT">
+            <Label text="Grand Total"/>
+            <Label fx:id="grandTotalLabel"
+                   style="-fx-font-weight:bold; -fx-text-fill:#16A34A;"/>
+        </VBox>
+
+    </HBox>
+
+    <HBox spacing="12" alignment="CENTER_RIGHT">
+        <Button text="Add Row" onAction="#addRow"/>
+        <Button text="Save PO"
+                onAction="#savePO"
+                style="-fx-background-color:#16A34A; -fx-text-fill:white;"/>
+    </HBox>
+
+</VBox>

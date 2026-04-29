@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="ui.RestoreDatabaseController">
+
+    <!-- HEADER -->
+    <top>
+        <VBox spacing="10" style="-fx-padding:20;">
+            <Label text="Restore Database Backup"
+                   style="-fx-font-size:18; -fx-font-weight:bold;"/>
+
+            <Label text="Select a backup file. Current database will be replaced."
+                   wrapText="true"
+                   style="-fx-text-fill:#475569;"/>
+
+            <HBox alignment="CENTER_LEFT">
+                <Button text="🧹 Cleanup Old Manual Backups"
+                        onAction="#cleanupManual"
+                        style="
+                            -fx-background-color:#e5e7eb;
+                            -fx-font-weight:bold;
+                            -fx-padding:6 14;
+                        "/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- CONTENT -->
+    <center>
+        <VBox spacing="10" style="-fx-padding:0 20 20 20;">
+            <Label fx:id="recommendationLabel"
+                   style="
+                       -fx-padding:8 12;
+                       -fx-background-color:#f8fafc;
+                       -fx-border-color:#e5e7eb;
+                       -fx-border-radius:6;
+                       -fx-background-radius:6;
+                   "/>
+
+            <HBox spacing="12"
+                  alignment="CENTER_RIGHT"
+                  style="-fx-padding:0 0 10 0;">
+
+                <Label text="Filter:"
+                       style="-fx-text-fill:#475569;"/>
+
+                <ComboBox fx:id="filterBox"
+                          prefWidth="150"/>
+
+                <Label text="Sort:"
+                       style="-fx-text-fill:#475569;"/>
+
+                <ComboBox fx:id="sortBox"
+                          prefWidth="150"/>
+            </HBox>
+
+            <ListView fx:id="backupList"
+                      VBox.vgrow="ALWAYS"/>
+        </VBox>
+    </center>
+
+    <!-- ACTIONS -->
+    <bottom>
+        <HBox spacing="10"
+              alignment="CENTER_RIGHT"
+              style="-fx-padding:20;">
+            <Button fx:id="restoreButton"
+                    text="Restore"
+                    onAction="#restore"/>
+
+
+            <Button text="Cancel"
+                    onAction="#close"
+                    style="-fx-padding:6 18;"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
+

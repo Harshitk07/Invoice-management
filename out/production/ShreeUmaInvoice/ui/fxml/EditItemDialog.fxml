@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="ui.EditItemController"
+      spacing="14"
+      style="
+          -fx-padding:18;
+          -fx-background-color:#f8fafc;
+      ">
+
+    <!-- ===== TITLE ===== -->
+    <Label text="Edit Item"
+           style="
+               -fx-font-size:17;
+               -fx-font-weight:bold;
+               -fx-text-fill:#1f2937;
+           "/>
+
+    <!-- ===== FORM CARD ===== -->
+    <VBox spacing="14"
+          style="
+              -fx-background-color:white;
+              -fx-background-radius:12;
+              -fx-border-color:#e5e7eb;
+              -fx-border-radius:12;
+              -fx-padding:16;
+          ">
+
+        <!-- ===== IDENTITY ===== -->
+        <VBox spacing="10">
+            <Label text="Item Details"
+                   style="-fx-font-weight:bold; -fx-text-fill:#374151;"/>
+
+            <TextField fx:id="nameField"
+                       editable="false"
+                       style="
+                           -fx-font-size:14;
+                           -fx-pref-height:38;
+                           -fx-background-color:#f1f5f9;
+                       "/>
+
+            <TextField fx:id="hsnField"
+                       promptText="HSN Code"
+                       style="
+                           -fx-font-size:14;
+                           -fx-pref-height:38;
+                       "/>
+
+            <ComboBox fx:id="unitCombo"
+                      promptText="Unit"
+                      style="
+                          -fx-font-size:14;
+                          -fx-pref-height:38;
+                      "/>
+        </VBox>
+
+        <Separator/>
+
+        <!-- ===== PRICING ===== -->
+        <VBox spacing="10">
+            <Label text="Pricing"
+                   style="-fx-font-weight:bold; -fx-text-fill:#374151;"/>
+
+            <TextField fx:id="rateField"
+                       promptText="Rate"
+                       style="
+                           -fx-font-size:14;
+                           -fx-pref-height:38;
+                       "/>
+
+            <ComboBox fx:id="gstCombo"
+                      promptText="GST %"
+                      style="
+                          -fx-font-size:14;
+                          -fx-pref-height:38;
+                      "/>
+        </VBox>
+
+    </VBox>
+
+    <!-- ===== ACTIONS ===== -->
+    <HBox spacing="12"
+          alignment="CENTER_RIGHT">
+
+        <Button text="Cancel"
+                onAction="#close"
+                style="
+                    -fx-background-color:#e5e7eb;
+                    -fx-text-fill:#111827;
+                    -fx-background-radius:8;
+                    -fx-padding:8 16;
+                "/>
+
+        <Button text="Update"
+                onAction="#update"
+                style="
+                    -fx-background-color:#1565c0;
+                    -fx-text-fill:white;
+                    -fx-font-weight:bold;
+                    -fx-background-radius:8;
+                    -fx-padding:8 20;
+                "/>
+    </HBox>
+
+</VBox>

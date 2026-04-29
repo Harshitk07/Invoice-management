@@ -28,6 +28,7 @@ public class HomeController implements Navigable{
     @FXML private VBox coreOpsCard;
     @FXML private VBox analyticsCard;
     @FXML private VBox personalToolsCard;
+    @FXML private VBox managementCard;
 
     @FXML private Label backupStatusLabel;
     @FXML private Label dbSizeLabel;
@@ -56,8 +57,8 @@ public class HomeController implements Navigable{
         playCardCascade(
                 systemStatusCard,
                 coreOpsCard,
-                analyticsCard,
-                personalToolsCard
+                managementCard,
+                analyticsCard
         );
 
         for (Node n : root.lookupAll(".button")) {
@@ -68,7 +69,7 @@ public class HomeController implements Navigable{
         installHover(systemStatusCard, 1.015, 18);
         installHover(coreOpsCard, 1.015, 22);
         installHover(analyticsCard, 1.015, 16);
-        installHover(personalToolsCard, 1.015, 14);
+        installHover(managementCard, 1.015, 18);
 
         applyCapabilityVisibility();
 
@@ -198,8 +199,6 @@ public class HomeController implements Navigable{
         analyticsCard.setManaged(showAnalytics);
         analyticsCard.setVisible(showAnalytics);
 
-        personalToolsCard.setManaged(showPersonalTools);
-        personalToolsCard.setVisible(showPersonalTools);
     }
 
 
@@ -229,5 +228,25 @@ public class HomeController implements Navigable{
     @FXML
     private void customerMaster() {
         dashboard.openCustomerMaster();
+    }
+
+    @FXML
+    private void addContract() {
+        dashboard.openAddContract();
+    }
+
+    @FXML
+    private void addPurchaseOrder() {
+        dashboard.openAddPurchaseOrder();
+    }
+
+    @FXML
+    private void viewContracts() {
+        dashboard.openContractList();
+    }
+
+    @FXML
+    private void viewPurchaseOrders() {
+        dashboard.openPurchaseOrderList();
     }
 }

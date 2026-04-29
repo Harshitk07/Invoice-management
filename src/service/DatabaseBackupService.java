@@ -105,6 +105,10 @@ public final class DatabaseBackupService {
 
         validateBackup(backupFile);
 
+        // 🔥 CLOSE DB FIRST
+        DB.closeAllConnections();
+        Thread.sleep(300); // allow OS to release lock
+
         backupBeforeRestore();
 
         Path dbPath = DB.getDatabasePath();
@@ -119,7 +123,7 @@ public final class DatabaseBackupService {
         Files.copy(backupFile, temp, StandardCopyOption.REPLACE_EXISTING);
 
         // Step 2: Close DB cleanly
-        DB.close();
+//        DB.close();
 
         // Step 3: Move old DB aside
         Files.move(dbPath, corrupt, StandardCopyOption.REPLACE_EXISTING);
